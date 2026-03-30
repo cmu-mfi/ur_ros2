@@ -1,0 +1,38 @@
+# MoveIt uses this configuration for controller management
+moveit_controller_manager: moveit_simple_controller_manager/MoveItSimpleControllerManager
+
+trajectory_execution:
+  allowed_execution_duration_scaling: 1.2
+  allowed_goal_duration_margin: 0.5
+  allowed_start_tolerance: 0.01
+  execution_duration_monitoring: false # May lead to unexpectedly aborted goals with scaled JTC
+
+moveit_simple_controller_manager:
+  controller_names:
+    # - scaled_joint_trajectory_controller
+    - joint_trajectory_controller
+
+  # scaled_joint_trajectory_controller:
+  #   action_ns: follow_joint_trajectory
+  #   type: FollowJointTrajectory
+  #   default: true
+  #   joints:
+  #     - <prefix>shoulder_pan_joint
+  #     - <prefix>shoulder_lift_joint
+  #     - <prefix>elbow_joint
+  #     - <prefix>wrist_1_joint
+  #     - <prefix>wrist_2_joint
+  #     - <prefix>wrist_3_joint
+
+
+  joint_trajectory_controller:
+    action_ns: follow_joint_trajectory
+    type: FollowJointTrajectory
+    default: true
+    joints:
+      - <prefix>shoulder_pan_joint
+      - <prefix>shoulder_lift_joint
+      - <prefix>elbow_joint
+      - <prefix>wrist_1_joint
+      - <prefix>wrist_2_joint
+      - <prefix>wrist_3_joint

@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>ur_ros2_bringup</name>
+  <version>1.0.0</version>
+  <description>launch files for ur_ros2</description>
+  <maintainer email="alex@minor.pw">Alexander Minor</maintainer>
+  <license>TODO: License declaration</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- Dependencies -->
+  <depend>ur</depend>
+  <depend>moveit</depend>
+  <depend>moveit_servo</depend>
+  <depend>robot_state_publisher</depend>
+  <depend>xacro</depend>
+  <depend>joint_state_publisher</depend>
+  <depend>ros2_control_cmake</depend>
+  <depend>ros2_control</depend>
+  <depend>ros2_controllers</depend>
+  <depend>ros2controlcli</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

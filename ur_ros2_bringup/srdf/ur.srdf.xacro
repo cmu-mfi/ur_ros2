@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="$(arg name)">
+
+  <xacro:arg name="name" default="ur"/>
+  <xacro:arg name="tf_prefix" default=""/>
+
+  <xacro:include filename="$(find ur_ros2_bringup)/srdf/ur_macro.srdf.xacro"/>
+
+  <xacro:ur_srdf tf_prefix="$(arg tf_prefix)"/>
+
+</robot>
