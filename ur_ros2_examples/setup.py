@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-package_name = 'ur_ros2_example'
+package_name = 'ur_ros2_examples'
 
 setup(
     name=package_name,
@@ -19,10 +19,10 @@ setup(
     license='TODO: License declaration',
     entry_points={
         'console_scripts': [
-            'servo_example = ur_ros2_example.servo_example:main',
-            'move_example = ur_ros2_example.move_example:main',
-            'io_example = ur_ros2_example.io_example:main',
-            'tf_example = ur_ros2_example.tf_example:main',
+            'servo_example = ur_ros2_examples.servo_example:main',
+            'move_example = ur_ros2_examples.move_example:main',
+            'io_example = ur_ros2_examples.io_example:main',
+            'tf_example = ur_ros2_examples.tf_example:main',
         ],
     },
 )

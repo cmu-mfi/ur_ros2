@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>ur_ros2_example</name>
+  <name>ur_ros2_examples</name>
   <version>1.0.0</version>
   <description>Examples for ur_ros2</description>
   <maintainer email="alex@minor.pw">Alexander Minor</maintainer>
