@@ -46,33 +46,28 @@ To start the driver and moveit environment, use the bringup launch file:
 ros2 launch ur_ros2_bringup bringup.launch.py
 ```
 
-To see all possible arguments:
-```bash
-ros2 launch ur_ros2_bringup bringup.launch.py --show-arguments
-```
-z
-Example:
+**Launch file arguments:**
+
+You can configure the launch file by passing these arguments via the command line:
+
+| Argument | Description | Default Value | Available Choices |
+| :--- | :--- | :--- | :--- |
+| `ip` | IP address of the robot. | `192.168.19.101` | - |
+| `ns` | Namespace of the robot. Used as a prefix, which is required if running multiple robots on the same network. | `""` (empty) | - |
+| `launch_rviz` | Whether to launch RViz for visualization. | `false` | `true`, `false` |
+| `launch_servo` | Whether to launch MoveIt Servo for real-time control. | `true` | `true`, `false` |
+| `model` | The specific type/series of Universal Robot being used. | `ur20` | `ur3`, `ur5`, `ur10`, `ur3e`, `ur5e`, `ur7e`, `ur10e`, `ur12e`, `ur16e`, `ur8long`, `ur15`, `ur18`, `ur20`, `ur30` |
+| `use_mock_hardware`| Start the robot with mock hardware, mirroring commands directly to its states (useful for testing without physical hardware). | `false` | `true`, `false` |
+| `log_level` | The ROS logging level to use across all nodes. | `error` | `info`, `debug`, `error` |
+
+
+
+**Example:**
 ```bash
 ros2 launch ur_ros2_bringup bringup.launch.py ns:=robot_1 ip:=192.168.19.101 launch_rviz:=true launch_rviz:=true launch_servo:=false use_mock_hardware:=true model:=ur20
 ```
 
-**Note:** 
-Rviz is currently only working without using namespaces.
-
-### 3\. Running an Example
-
-Once the bringup launch file is actively running, open a new terminal and run one of the provided examples to see the robot in action:
-
-```bash
-ros2 run ur_ros2_examples <example_node_name>
-```
-
-Example:
-```bash
-ros2 run ur_ros2_examples move_example --ros-args -p ns:=robot_1
-```
-
-#### Example Python Scripts
+### 3\. Run an Example Python Script
 
 The `ur_ros2_examples` package includes several Python nodes designed to demonstrate different ways to interact with the Universal Robot using ROS 2. 
 
@@ -84,3 +79,8 @@ Below is a breakdown of the available example scripts:
 | `servo_example` | Sends twists and poses to moveit_servo (WARNING: Will move the robot) | Twist & Pose publishing to moveit_servo |
 | `io_example` | Write the IO of the robot. | Using the `io_and_status_controller` directly |
 | `tf_example` | Using transforms to obtain the current cartesian pose of the tool | transforms |
+
+**Example:**
+```bash
+ros2 run ur_ros2_examples move_example --ros-args -p ns:=robot_1
+```
