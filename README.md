@@ -79,6 +79,7 @@ Below is a breakdown of the available example scripts:
 | `servo_example` | Sends twists and poses to moveit_servo (WARNING: Will move the robot) | Twist & Pose publishing to moveit_servo |
 | `io_example` | Write the IO of the robot. | Using the `io_and_status_controller` directly |
 | `tf_example` | Using transforms to obtain the current cartesian pose of the tool | transforms |
+| `force_control_example` | Use force control to have compliance in one axis (read comments in file for modifications needed) | ur force mode |
 
 **Example:**
 ```bash

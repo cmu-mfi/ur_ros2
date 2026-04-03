@@ -7,7 +7,6 @@ $(var ns):
       io_and_status_controller:
         type: ur_controllers/GPIOController
 
-
       force_torque_sensor_broadcaster:
         type: force_torque_sensor_broadcaster/ForceTorqueSensorBroadcaster
 
@@ -16,9 +15,17 @@ $(var ns):
 
       ur_configuration_controller:
         type: ur_controllers/URConfigurationController
+      
+      passthrough_trajectory_controller:
+        type: ur_controllers/PassthroughTrajectoryController
+
+      force_mode_controller:
+        type: ur_controllers/ForceModeController
+
+      tcp_pose_broadcaster:
+        type: pose_broadcaster/PoseBroadcaster
 
       enforce_command_limits: false
-
 
   io_and_status_controller:
     ros__parameters:
@@ -41,6 +48,24 @@ $(var ns):
       frame_id: $(var tf_prefix)tool0_controller
       topic_name: ft_data
 
+  passthrough_trajectory_controller:
+    ros__parameters:
+      tf_prefix: "$(var tf_prefix)"
+      joints:
+        - $(var tf_prefix)shoulder_pan_joint
+        - $(var tf_prefix)shoulder_lift_joint
+        - $(var tf_prefix)elbow_joint
+        - $(var tf_prefix)wrist_1_joint
+        - $(var tf_prefix)wrist_2_joint
+        - $(var tf_prefix)wrist_3_joint
+      state_interfaces:
+        - position
+        - velocity
+      speed_scaling_interface_name: $(var tf_prefix)speed_scaling/speed_scaling_factor
+
+  force_mode_controller:
+    ros__parameters:
+      tf_prefix: "$(var tf_prefix)"
 
   joint_trajectory_controller:
     ros__parameters:
@@ -68,8 +93,10 @@ $(var ns):
         $(var tf_prefix)wrist_1_joint: {trajectory: 0.2, goal: 0.1}
         $(var tf_prefix)wrist_2_joint: {trajectory: 0.2, goal: 0.1}
         $(var tf_prefix)wrist_3_joint: {trajectory: 0.2, goal: 0.1}
-      # speed_scaling:
-      #   state_interface: $(var tf_prefix)speed_scaling/speed_scaling_factor
-        # Setting the command interface currently would clash with the io_and_status_controller
-        # This will probably be changed in the future.
-        # command_interface: $(var tf_prefix)speed_scaling/target_speed_fraction_cmd
+
+  tcp_pose_broadcaster:
+    ros__parameters:
+      frame_id: $(var tf_prefix)base
+      pose_name: $(var tf_prefix)tcp_pose
+      tf:
+        child_frame_id: $(var tf_prefix)tool0_controller

@@ -21,6 +21,7 @@ setup(
         'console_scripts': [
             'servo_example = ur_ros2_examples.servo_example:main',
             'move_example = ur_ros2_examples.move_example:main',
+            'force_control_example = ur_ros2_examples.force_control_example:main',
             'io_example = ur_ros2_examples.io_example:main',
             'tf_example = ur_ros2_examples.tf_example:main',
         ],

@@ -75,30 +75,38 @@ def launch_setup(context):
         arguments=["--ros-args", "--log-level", log_level],
     )
 
-    def controller_spawner(controllers):
+    def controller_spawner(controllers, active=True):
+        inactive_flags = ["--inactive"] if not active else []
         return Node(
             package="controller_manager",
             executable="spawner",
             arguments=[
                 "--controller-manager",
-                "controller_manager",
+                "/controller_manager",
                 "--controller-manager-timeout",
                 "10",
             ]
+            + inactive_flags
             + controllers
             + ["--ros-args", "--log-level", log_level],
         )
 
-    controllers = [
-            "joint_state_broadcaster",
-            "io_and_status_controller",
-            "joint_trajectory_controller",
-            "force_torque_sensor_broadcaster",
-            "ur_configuration_controller",
-            ]
+    controllers_active = [
+        "joint_state_broadcaster",
+        "io_and_status_controller",
+        "force_torque_sensor_broadcaster",
+        "ur_configuration_controller",
+        "joint_trajectory_controller",
+        # "tcp_pose_broadcaster",
+    ]
+    controllers_inactive = [
+        "passthrough_trajectory_controller",
+        "force_mode_controller",
+    ]
 
     controller_spawners = [
-        controller_spawner(controllers),
+        controller_spawner(controllers_active, active=True),
+        controller_spawner(controllers_inactive, active=False),
     ]
 
     description_launchfile = PathJoinSubstitution([FindPackageShare("ur_robot_driver"), "launch", "ur_rsp.launch.py"])

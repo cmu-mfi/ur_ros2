@@ -9,26 +9,25 @@ trajectory_execution:
 
 moveit_simple_controller_manager:
   controller_names:
-    # - scaled_joint_trajectory_controller
-    - joint_trajectory_controller
-
-  # scaled_joint_trajectory_controller:
-  #   action_ns: follow_joint_trajectory
-  #   type: FollowJointTrajectory
-  #   default: true
-  #   joints:
-  #     - <prefix>shoulder_pan_joint
-  #     - <prefix>shoulder_lift_joint
-  #     - <prefix>elbow_joint
-  #     - <prefix>wrist_1_joint
-  #     - <prefix>wrist_2_joint
-  #     - <prefix>wrist_3_joint
-
+    - joint_trajectory_controller # disable for force control
+    # - passthrough_trajectory_controller # enable for force control
 
   joint_trajectory_controller:
     action_ns: follow_joint_trajectory
     type: FollowJointTrajectory
     default: true
+    joints:
+      - <prefix>shoulder_pan_joint
+      - <prefix>shoulder_lift_joint
+      - <prefix>elbow_joint
+      - <prefix>wrist_1_joint
+      - <prefix>wrist_2_joint
+      - <prefix>wrist_3_joint
+
+  passthrough_trajectory_controller:
+    action_ns: follow_joint_trajectory
+    type: FollowJointTrajectory
+    default: false
     joints:
       - <prefix>shoulder_pan_joint
       - <prefix>shoulder_lift_joint
