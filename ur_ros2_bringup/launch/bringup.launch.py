@@ -1,17 +1,13 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction, ExecuteProcess, IncludeLaunchDescription, GroupAction
+from launch.actions import DeclareLaunchArgument, OpaqueFunction, IncludeLaunchDescription 
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch_ros.actions import PushRosNamespace
 from launch.substitutions import PathJoinSubstitution
 from launch_ros.substitutions import FindPackageShare
-import os
-from ament_index_python.packages import get_package_share_directory
-import tempfile
 
 def launch_setup(context, *args, **kwargs):
     ip = context.launch_configurations['ip']
-    ns = context.launch_configurations['ns']
     model = context.launch_configurations['model']
+    ns = context.launch_configurations['ns']
     use_mock_hardware = context.launch_configurations["use_mock_hardware"]
     log_level = context.launch_configurations["log_level"]
     launch_rviz = context.launch_configurations["launch_rviz"]
@@ -21,9 +17,14 @@ def launch_setup(context, *args, **kwargs):
     print("Starting bringup with paramaters:")
     print(" log_level:           " + log_level)
     print(" ip:                  " + ip)
-    print(" ns:                  " + ns)
     print(" model:               " + model)
+    if ns == "":
+        print(" ns:                  " + "/")
+    else:
+        print(" ns:                  " + ns)
     print(" use_mock_hardware:   " + use_mock_hardware)
+    print(" launch_servo:        " + launch_servo)
+    print(" launch_rviz:         " + launch_rviz)
     print("")
 
     driver_launch_path = PathJoinSubstitution([FindPackageShare('ur_ros2_bringup'), 'launch', 'driver.launch.py'])
@@ -33,8 +34,8 @@ def launch_setup(context, *args, **kwargs):
             PythonLaunchDescriptionSource(driver_launch_path),
             launch_arguments={
                 'log_level': log_level,
-                'model': model,
                 'ip': ip,
+                'model': model,
                 'ns': ns,
                 'use_mock_hardware': use_mock_hardware,
                 }.items()
@@ -74,7 +75,7 @@ def generate_launch_description():
             DeclareLaunchArgument("launch_rviz", default_value="false", description="Launch RViz?"),
             )
     declared_arguments.append(
-            DeclareLaunchArgument("launch_servo", default_value="true", description="Launch Moveit Servo?"),
+            DeclareLaunchArgument("launch_servo", default_value="false", description="Launch Moveit Servo?"),
             )
     declared_arguments.append(
             DeclareLaunchArgument(

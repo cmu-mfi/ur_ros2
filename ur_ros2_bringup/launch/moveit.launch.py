@@ -49,7 +49,10 @@ def launch_setup(context, *args, **kwargs):
     print("")
     print("Starting moveit with parameters:")
     print(" log_level:           " + log_level)
-    print(" ns:                  " + ns)
+    if ns == "":
+        print(" ns:                  " + "/")
+    else:
+        print(" ns:                  " + ns)
     print(" model:               " + model)
     print("")
 
@@ -231,7 +234,7 @@ def generate_launch_description():
             DeclareLaunchArgument("launch_rviz", default_value="false", description="Launch RViz?"),
             )
     declared_arguments.append(
-            DeclareLaunchArgument("launch_servo", default_value="true", description="Launch Moveit Servo?"),
+            DeclareLaunchArgument("launch_servo", default_value="false", description="Launch Moveit Servo?"),
             )
     declared_arguments.append(
         DeclareLaunchArgument(

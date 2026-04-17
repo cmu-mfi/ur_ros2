@@ -1,6 +1,8 @@
 $(var ns):
   controller_manager:
     ros__parameters:
+      update_rate: 500
+
       joint_state_broadcaster:
         type: joint_state_broadcaster/JointStateBroadcaster
 
@@ -21,11 +23,6 @@ $(var ns):
 
       force_mode_controller:
         type: ur_controllers/ForceModeController
-
-      tcp_pose_broadcaster:
-        type: pose_broadcaster/PoseBroadcaster
-
-      enforce_command_limits: false
 
   io_and_status_controller:
     ros__parameters:
@@ -93,10 +90,3 @@ $(var ns):
         $(var tf_prefix)wrist_1_joint: {trajectory: 0.2, goal: 0.1}
         $(var tf_prefix)wrist_2_joint: {trajectory: 0.2, goal: 0.1}
         $(var tf_prefix)wrist_3_joint: {trajectory: 0.2, goal: 0.1}
-
-  tcp_pose_broadcaster:
-    ros__parameters:
-      frame_id: $(var tf_prefix)base
-      pose_name: $(var tf_prefix)tcp_pose
-      tf:
-        child_frame_id: $(var tf_prefix)tool0_controller
