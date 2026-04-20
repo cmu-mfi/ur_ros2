@@ -43,7 +43,14 @@ $(var ns):
         - torque.y
         - torque.z
       frame_id: $(var tf_prefix)tool0_controller
-      topic_name: ft_data
+      sensor_filter_chain:
+        filter1:
+          name: fts_lowpass_filter
+          type: control_filters/LowPassFilterWrench 
+          params:
+            sampling_frequency: 500.0 
+            damping_frequency: 10.0 
+            damping_intensity: 0.1
 
   passthrough_trajectory_controller:
     ros__parameters:
