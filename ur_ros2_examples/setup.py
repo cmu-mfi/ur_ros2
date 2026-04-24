@@ -20,6 +20,7 @@ setup(
     entry_points={
         'console_scripts': [
             'servo_example = ur_ros2_examples.servo_example:main',
+            'servo_force = ur_ros2_examples.servo_force:main',
             'move_example = ur_ros2_examples.move_example:main',
             'force_control_example = ur_ros2_examples.force_control_example:main',
             'io_example = ur_ros2_examples.io_example:main',
