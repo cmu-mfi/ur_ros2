@@ -5,8 +5,8 @@ This repository contains packages and examples for integrating and controlling U
 
 This workspace is divided into two primary packages:
 
-  * **`ur_ros2_bringup`**: Contains essential launch files, configurations, and parameter files required to spin up the UR robot drivers, controllers, and MoveIt2 environments.
-  * **`ur_ros2_examples`**: Contains sample Python nodes and scripts demonstrating how to send joint and pose goals, interact with the MoveIt2 API, use moveit_servo and perform basic operations with the UR robot using ROS 2.
+  * **`ur_bringup`**: Contains essential launch files, configurations, and parameter files required to spin up the UR robot drivers, controllers, and MoveIt2 environments.
+  * **`ur_examples`**: Contains sample Python nodes and scripts demonstrating how to send joint and pose goals, interact with the MoveIt2 API, use moveit_servo and perform basic operations with the UR robot using ROS 2.
 
 ## ⚙️ Prerequisites and Dependencies
 
@@ -35,7 +35,7 @@ Each UR robot is calibrated inside the factory giving exact forward and inverse 
 
 To do this, run this command from your ros2 workspace:
 ```bash
-ros2 launch ur_calibration calibration_correction.launch.py robot_ip:=<your-robot-ip> target_filename:="ur_ros2_bringup/config/calibration.yaml"
+ros2 launch ur_calibration calibration_correction.launch.py robot_ip:=<your-robot-ip> target_filename:="ur_bringup/config/calibration.yaml"
 ```
 
 ### 2\. Launching the Bringup
@@ -43,7 +43,7 @@ ros2 launch ur_calibration calibration_correction.launch.py robot_ip:=<your-robo
 To start the driver and moveit environment, use the bringup launch file:
 
 ```bash
-ros2 launch ur_ros2_bringup bringup.launch.py
+ros2 launch ur_bringup bringup.launch.py
 ```
 
 **Launch file arguments:**
@@ -64,12 +64,12 @@ You can configure the launch file by passing these arguments via the command lin
 
 **Example:**
 ```bash
-ros2 launch ur_ros2_bringup bringup.launch.py ns:=robot_1 ip:=192.168.19.101 launch_rviz:=true launch_rviz:=true launch_servo:=false use_mock_hardware:=true model:=ur20
+ros2 launch ur_bringup bringup.launch.py ns:=robot_1 ip:=192.168.19.101 launch_rviz:=true launch_rviz:=true launch_servo:=false use_mock_hardware:=true model:=ur20
 ```
 
 ### 3\. Run an Example Python Script
 
-The `ur_ros2_examples` package includes several Python nodes designed to demonstrate different ways to interact with the Universal Robot using ROS 2. 
+The `ur_examples` package includes several Python nodes designed to demonstrate different ways to interact with the Universal Robot using ROS 2. 
 
 Below is a breakdown of the available example scripts:
 
@@ -83,5 +83,5 @@ Below is a breakdown of the available example scripts:
 
 **Example:**
 ```bash
-ros2 run ur_ros2_examples move_example --ros-args -p ns:=robot_1
+ros2 run ur_examples move_example --ros-args -p ns:=robot_1
 ```
