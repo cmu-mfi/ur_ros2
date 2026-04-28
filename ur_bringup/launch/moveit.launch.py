@@ -57,7 +57,7 @@ def launch_setup(context, *args, **kwargs):
     print("")
 
     # Package names (Update these to match your workspace)
-    config_package = 'ur_ros2_bringup'
+    config_package = 'ur_bringup'
 
     # SRDF
     srdf_file_path = os.path.join(get_package_share_directory(config_package), 'srdf', 'ur.srdf.xacro')
@@ -193,7 +193,7 @@ def launch_setup(context, *args, **kwargs):
 
     # Rviz
     rviz_config_file = PathJoinSubstitution(
-        [FindPackageShare("ur_ros2_bringup"), "config", "moveit.rviz"]
+        [FindPackageShare("ur_bringup"), "config", "moveit.rviz"]
     )
     rviz_node = Node(
         package="rviz2",

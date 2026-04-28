@@ -30,9 +30,9 @@ def launch_setup(context, *args, **kwargs):
     print("")
 
     if ns != "":
-        controllers_file = PathJoinSubstitution([FindPackageShare("ur_ros2_bringup"), "config", "ns_ros2_controllers.yaml"])
+        controllers_file = PathJoinSubstitution([FindPackageShare("ur_bringup"), "config", "ns_ros2_controllers.yaml"])
     else:
-        controllers_file = PathJoinSubstitution([FindPackageShare("ur_ros2_bringup"), "config", "ros2_controllers.yaml"])
+        controllers_file = PathJoinSubstitution([FindPackageShare("ur_bringup"), "config", "ros2_controllers.yaml"])
 
     nodes = []
 
@@ -183,7 +183,7 @@ def generate_launch_description():
                                                      "' if '", 
                                                      LaunchConfiguration('use_mock_hardware'), 
                                                      "' == 'true' else '",
-                                                     PathJoinSubstitution([FindPackageShare("ur_ros2_bringup"), "config", "calibration.yaml"]),
+                                                     PathJoinSubstitution([FindPackageShare("ur_bringup"), "config", "calibration.yaml"]),
                                                      "'"
                                                      ])))
     declared_arguments.append(
