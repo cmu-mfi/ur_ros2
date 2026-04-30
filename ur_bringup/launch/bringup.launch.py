@@ -27,8 +27,8 @@ def launch_setup(context, *args, **kwargs):
     print(" launch_rviz:         " + launch_rviz)
     print("")
 
-    driver_launch_path = PathJoinSubstitution([FindPackageShare('ur_ros2_bringup'), 'launch', 'driver.launch.py'])
-    moveit_launch_path = PathJoinSubstitution([FindPackageShare('ur_ros2_bringup'), 'launch', 'moveit.launch.py'])
+    driver_launch_path = PathJoinSubstitution([FindPackageShare('ur_bringup'), 'launch', 'driver.launch.py'])
+    moveit_launch_path = PathJoinSubstitution([FindPackageShare('ur_bringup'), 'launch', 'moveit.launch.py'])
 
     driver = IncludeLaunchDescription(
             PythonLaunchDescriptionSource(driver_launch_path),
