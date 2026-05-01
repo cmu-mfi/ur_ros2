@@ -73,13 +73,14 @@ The `ur_examples` package includes several Python nodes designed to demonstrate 
 
 Below is a breakdown of the available example scripts:
 
-| Script Name | Description | Key ROS 2 Concepts Demonstrated |
-| :--- | :--- | :--- |
-| `move_example` | Sends joints and pose goals to moveit (WARNING: Will move the robot) | MoveIt Action Interface |
-| `servo_example` | Sends twists and poses to moveit_servo (WARNING: Will move the robot) | Twist & Pose publishing to moveit_servo |
-| `io_example` | Write the IO of the robot. | Using the `io_and_status_controller` directly |
-| `tf_example` | Using transforms to obtain the current cartesian pose of the tool | transforms |
-| `force_control_example` | Use force control to have compliance in one axis (read comments in file for modifications needed) | ur force mode |
+| Script Name | Description |
+| :--- | :--- |
+| `move_example` | Sends joints and pose goals to moveit (WARNING: Will move the robot) |
+| `servo_example` | Sends twists and poses to moveit_servo (WARNING: Will move the robot) |
+| `io_example` | Write the IO of the robot using the `io_and_status_controller`. |
+| `tf_example` | Using transforms to obtain the current cartesian pose of the tool |
+| `force_control_example` | Use force control to have compliance in one axis (read comments in file for modifications needed) |
+| `payload_example` | Change the payload and center-of-gravity of the ur tool |
 
 **Example:**
 ```bash

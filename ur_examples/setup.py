@@ -25,6 +25,7 @@ setup(
             'force_control_example = ur_examples.force_control_example:main',
             'io_example = ur_examples.io_example:main',
             'tf_example = ur_examples.tf_example:main',
+            'payload_example = ur_examples.payload_example:main',
         ],
     },
 )
