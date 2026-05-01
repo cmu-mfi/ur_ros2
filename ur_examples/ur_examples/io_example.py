@@ -22,11 +22,12 @@ def main(args=None):
     req.pin = 1 # 1 for do1
     req.state = 1.0 # 1.0 for ON, 0.0 for OFF
     
-    # Send the async request
+    input("Press Enter to turn on!")
+
     future = io.io_client.call_async(req)
     rclpy.spin_until_future_complete(io.node, future)
 
-    time.sleep(1)
+    input("Press Enter to turn off!")
 
     req.state = 0.0 # 1.0 for ON, 0.0 for OFF
     future = io.io_client.call_async(req)
