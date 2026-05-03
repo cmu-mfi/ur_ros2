@@ -49,8 +49,8 @@ force_torque_sensor_broadcaster:
         type: control_filters/LowPassFilterWrench 
         params:
           sampling_frequency: 500.0 
-          damping_frequency: 10.0 
-          damping_intensity: 0.1
+          damping_frequency: 2.0 
+          damping_intensity: 0.0
 
 passthrough_trajectory_controller:
   ros__parameters:

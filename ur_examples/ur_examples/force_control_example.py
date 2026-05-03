@@ -49,7 +49,7 @@ class UR():
     def create_joint_msg(self, joint_constraints, velocity=0.1, acceleration=0.1):
         goal_msg = MoveGroup.Goal()
         request = MotionPlanRequest()
-        request.group_name = self.prefix + 'ur_manipulator'
+        request.group_name = self.prefix + 'manipulator'
         request.pipeline_id = 'pilz_industrial_motion_planner'
         request.planner_id = "PTP"
         
@@ -79,7 +79,7 @@ class UR():
     def create_pose_msg(self, target_pose: PoseStamped, planner_id: str = "LIN", velocity:float = 0.1, acceleration:float = 0.1) -> MoveGroup.Goal:
         goal_msg = MoveGroup.Goal()
         request = MotionPlanRequest()
-        request.group_name = self.prefix + 'ur_manipulator'
+        request.group_name = self.prefix + 'manipulator'
         request.pipeline_id = 'pilz_industrial_motion_planner'
         request.planner_id = planner_id
         

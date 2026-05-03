@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <robot xmlns:xacro="http://wiki.ros.org/xacro">
   <xacro:macro name="ur_srdf" params="tf_prefix">
-    <group name="${tf_prefix}ur_manipulator">
+    <group name="${tf_prefix}manipulator">
       <chain base_link="${tf_prefix}base_link" tip_link="${tf_prefix}tool0" />
     </group>
-    <group_state name="home" group="${tf_prefix}ur_manipulator">
-      <joint name="${tf_prefix}elbow_joint" value="0" />
-      <joint name="${tf_prefix}shoulder_lift_joint" value="-1.5707" />
+    <group_state name="home" group="${tf_prefix}manipulator">
       <joint name="${tf_prefix}shoulder_pan_joint" value="0" />
-      <joint name="${tf_prefix}wrist_1_joint" value="0" />
-      <joint name="${tf_prefix}wrist_2_joint" value="0" />
+      <joint name="${tf_prefix}shoulder_lift_joint" value="${-90 * pi / 180}" />
+      <joint name="${tf_prefix}elbow_joint" value="${90 * pi / 180}" />
+      <joint name="${tf_prefix}wrist_1_joint" value="${-90 * pi / 180}" />
+      <joint name="${tf_prefix}wrist_2_joint" value="${-90 * pi / 180}" />
       <joint name="${tf_prefix}wrist_3_joint" value="0" />
     </group_state>
     <disable_collisions link1="${tf_prefix}base_link" link2="${tf_prefix}base_link_inertia" reason="Adjacent" />
