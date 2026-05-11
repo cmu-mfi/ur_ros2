@@ -234,7 +234,7 @@ def generate_launch_description():
             DeclareLaunchArgument("launch_rviz", default_value="false", description="Launch RViz?"),
             )
     declared_arguments.append(
-            DeclareLaunchArgument("launch_servo", default_value="false", description="Launch Moveit Servo?"),
+            DeclareLaunchArgument("launch_servo", default_value="true", description="Launch Moveit Servo?"),
             )
     declared_arguments.append(
         DeclareLaunchArgument(

@@ -14,7 +14,7 @@ command_in_type: "speed_units"  # "unitless"> in the range [-1:1], as if from jo
 system_latency_compensation: 0.04
 
 ## Properties of outgoing commands
-publish_period: 0.002  # 1/Nominal publish rate [seconds]
+publish_period: 0.004  # 1/Nominal publish rate [seconds]
 low_latency_mode: false  # Set this to true to publish as soon as an incoming Twist command is received (publish_period is ignored)
 
 # What type of topic does your robot driver expect?
