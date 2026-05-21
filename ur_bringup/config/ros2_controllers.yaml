@@ -1,4 +1,4 @@
-controller_manager:
+/**/controller_manager:
   ros__parameters:
     update_rate: 500
 
@@ -23,15 +23,15 @@ controller_manager:
     force_mode_controller:
       type: ur_controllers/ForceModeController
 
-io_and_status_controller:
+/**/io_and_status_controller:
   ros__parameters:
     tf_prefix: "$(var tf_prefix)"
 
-ur_configuration_controller:
+/**/ur_configuration_controller:
   ros__parameters:
     tf_prefix: "$(var tf_prefix)"
 
-force_torque_sensor_broadcaster:
+/**/force_torque_sensor_broadcaster:
   ros__parameters:
     sensor_name: $(var tf_prefix)tcp_fts_sensor
     state_interface_names:
@@ -52,7 +52,7 @@ force_torque_sensor_broadcaster:
           damping_frequency: 2.0 
           damping_intensity: 0.0
 
-passthrough_trajectory_controller:
+/**/passthrough_trajectory_controller:
   ros__parameters:
     tf_prefix: "$(var tf_prefix)"
     joints:
@@ -67,11 +67,11 @@ passthrough_trajectory_controller:
       - velocity
     speed_scaling_interface_name: $(var tf_prefix)speed_scaling/speed_scaling_factor
 
-force_mode_controller:
+/**/force_mode_controller:
   ros__parameters:
     tf_prefix: "$(var tf_prefix)"
 
-joint_trajectory_controller:
+/**/joint_trajectory_controller:
   ros__parameters:
     joints:
       - $(var tf_prefix)shoulder_pan_joint

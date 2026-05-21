@@ -29,6 +29,7 @@ def launch_setup(context, *args, **kwargs):
 
     driver_launch_path = PathJoinSubstitution([FindPackageShare('ur_bringup'), 'launch', 'driver.launch.py'])
     moveit_launch_path = PathJoinSubstitution([FindPackageShare('ur_bringup'), 'launch', 'moveit.launch.py'])
+    robot_manager_launch_path = PathJoinSubstitution([FindPackageShare('ur_bringup'), 'launch', 'robot_manager.launch.py'])
 
     driver = IncludeLaunchDescription(
             PythonLaunchDescriptionSource(driver_launch_path),
@@ -51,8 +52,17 @@ def launch_setup(context, *args, **kwargs):
                 'launch_servo': launch_servo,
                 }.items()
             )
+    robot_manager = IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(robot_manager_launch_path),
+            launch_arguments={
+                'log_level': log_level,
+                'model': model,
+                'ns': ns,
+                }.items()
+            )
 
-    return [driver, moveit]
+
+    return [driver, moveit, robot_manager]
 
 def generate_launch_description():
     # add launch arguments

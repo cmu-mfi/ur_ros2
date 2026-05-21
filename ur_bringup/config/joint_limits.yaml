@@ -1,19 +1,19 @@
 joint_limits:
-  <prefix>shoulder_pan_joint:
+  shoulder_pan_joint:
     has_acceleration_limits: true
     max_acceleration: 5.0
-  <prefix>shoulder_lift_joint:
+  shoulder_lift_joint:
     has_acceleration_limits: true
     max_acceleration: 5.0
-  <prefix>elbow_joint:
+  elbow_joint:
     has_acceleration_limits: true
     max_acceleration: 5.0
-  <prefix>wrist_1_joint:
+  wrist_1_joint:
     has_acceleration_limits: true
     max_acceleration: 5.0
-  <prefix>wrist_2_joint:
+  wrist_2_joint:
     has_acceleration_limits: true
     max_acceleration: 5.0
-  <prefix>wrist_3_joint:
+  wrist_3_joint:
     has_acceleration_limits: true
     max_acceleration: 5.0

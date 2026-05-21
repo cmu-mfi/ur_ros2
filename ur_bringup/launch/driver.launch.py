@@ -1,23 +1,24 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, SetLaunchConfiguration, OpaqueFunction, IncludeLaunchDescription, GroupAction
-from launch.conditions import UnlessCondition
+from launch.actions import DeclareLaunchArgument, SetLaunchConfiguration, OpaqueFunction
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
-from launch_ros.actions import Node, PushRosNamespace
+from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterFile
 from launch_ros.substitutions import FindPackageShare
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
-from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution
+from launch_ros.parameter_descriptions import ParameterValue
+from launch.conditions import UnlessCondition
 
-def launch_setup(context, *args, **kwargs):
-    ip = context.launch_configurations['ip']
+def launch_setup(context):
     ns = context.launch_configurations['ns']
     tf_prefix = context.launch_configurations['tf_prefix']
+    ip = context.launch_configurations['ip']
+    use_mock_hardware = context.launch_configurations['use_mock_hardware']
+    log_level = context.launch_configurations['log_level']
     model = context.launch_configurations['model']
-    use_mock_hardware = context.launch_configurations["use_mock_hardware"]
-    log_level = context.launch_configurations["log_level"]
+    kinematics_params_file = context.launch_configurations['kinematics_params_file']
 
     print("")
-    print("Starting driver with paramaters:")
+    print("Starting bringup with paramaters:")
     print(" log_level:           " + log_level)
     if use_mock_hardware == "false":
         print(" ip:                  " + ip)
@@ -25,41 +26,84 @@ def launch_setup(context, *args, **kwargs):
         print(" ns:                  " + "/")
     else:
         print(" ns:                  " + ns)
-    print(" model:               " + model)
     print(" use_mock_hardware:   " + use_mock_hardware)
+    print(" model:               " + model)
     print("")
 
-    if ns != "":
-        controllers_file = PathJoinSubstitution([FindPackageShare("ur_bringup"), "config", "ns_ros2_controllers.yaml"])
-    else:
-        controllers_file = PathJoinSubstitution([FindPackageShare("ur_bringup"), "config", "ros2_controllers.yaml"])
+    # Packages
+    config_pkg_name = "ur_bringup"
+    description_pkg_name = "ur_robot_driver"
+
+    # ROS2 Controllers
+    ros2_controllers_file = PathJoinSubstitution(
+        [FindPackageShare(config_pkg_name), "config", "ros2_controllers.yaml"]
+    )
+    # Robot Description
+    description_file = PathJoinSubstitution([FindPackageShare(description_pkg_name), "urdf", "ur.urdf.xacro"])
+    script_filename = PathJoinSubstitution([FindPackageShare("ur_client_library"), "resources", "external_control.urscript"])
+    input_recipe_filename = PathJoinSubstitution([FindPackageShare("ur_robot_driver"), "resources", "rtde_input_recipe.txt"])
+    output_recipe_filename = PathJoinSubstitution([FindPackageShare("ur_robot_driver"), "resources", "rtde_output_recipe.txt"])
+    robot_description_content = Command(
+        [
+            PathJoinSubstitution([FindExecutable(name="xacro")]),
+            " ",
+            description_file,
+            " ",
+            "robot_ip:=",
+            ip,
+            " ",
+            "ur_type:=",
+            model,
+            " ",
+            "tf_prefix:=",
+            tf_prefix,
+            " ",
+            "kinematics_params:=",
+            kinematics_params_file,
+            " ",
+            "name:=",
+            model,
+            " ",
+            "use_mock_hardware:=",
+            use_mock_hardware,
+            " ",
+            "headless_mode:=true",
+            " ",
+            "safety_limits:=true",
+            " ",
+            "script_filename:=", script_filename,
+            " ",
+            "input_recipe_filename:=", input_recipe_filename,
+            " ",
+            "output_recipe_filename:=", output_recipe_filename,
+        ]
+    )
+    robot_description = {
+            "robot_description": ParameterValue(robot_description_content, value_type=str)
+            }
 
     nodes = []
+
+    nodes.append(Node(
+        package='robot_state_publisher',
+        executable='robot_state_publisher',
+        name='robot_state_publisher',
+        namespace=ns,
+        parameters=[robot_description],
+        arguments=["--ros-args", "--log-level", log_level],
+        ))
 
     nodes.append(Node(
         package="controller_manager",
         executable="ros2_control_node",
         namespace=ns,
         parameters=[
-            ParameterFile(controllers_file, allow_substs=True),
+            ParameterFile(ros2_controllers_file, allow_substs=True),
+            robot_description
             ],
         arguments=["--ros-args", "--log-level", log_level],
         output="screen",
         ))
-
-    nodes.append(GroupAction(
-        actions=[
-            PushRosNamespace(ns),
-            IncludeLaunchDescription(
-                PythonLaunchDescriptionSource(PathJoinSubstitution([FindPackageShare("ur_robot_driver"), "launch", "ur_rsp.launch.py"])),
-                launch_arguments={
-                    "robot_ip": ip,
-                    "ur_type": model,
-                    "tf_prefix": tf_prefix
-                }.items())]
-                )
-        )
-
     nodes.append(Node(
         package="ur_robot_driver",
         condition=UnlessCondition(use_mock_hardware),
@@ -118,49 +162,19 @@ def launch_setup(context, *args, **kwargs):
         "ur_configuration_controller",
         "joint_trajectory_controller",
     ]
-    controllers_inactive = [
-        "passthrough_trajectory_controller",
-        "force_mode_controller",
-    ]
+    # controllers_inactive = [
+    #     "passthrough_trajectory_controller",
+    #     "force_mode_controller",
+    # ]
 
     nodes.append(controller_spawner(controllers_active, active=True))
-    nodes.append(controller_spawner(controllers_inactive, active=False))
+    # nodes.append(controller_spawner(controllers_inactive, active=False))
 
     return nodes
 
+
 def generate_launch_description():
-    # add launch arguments
     declared_arguments = []
-    declared_arguments.append(
-            DeclareLaunchArgument(
-                'ip',
-                default_value='192.168.19.101',
-                description='ip address of robot'
-                )
-            )
-    declared_arguments.append(
-            DeclareLaunchArgument(
-                'model',
-                default_value='ur20',
-                description="Typo/series of used UR robot.",
-                choices=[
-                    "ur3",
-                    "ur5",
-                    "ur10",
-                    "ur3e",
-                    "ur5e",
-                    "ur7e",
-                    "ur10e",
-                    "ur12e",
-                    "ur16e",
-                    "ur8long",
-                    "ur15",
-                    "ur18",
-                    "ur20",
-                    "ur30",
-                ],
-                )
-            )
     declared_arguments.append(
             DeclareLaunchArgument(
                 'ns',
@@ -169,23 +183,45 @@ def generate_launch_description():
                 )
             )
     declared_arguments.append(
-        DeclareLaunchArgument(
-            "use_mock_hardware",
-            default_value="false",
-            description="Start robot with mock hardware mirroring command to its states.",
-        )
-    )
-    declared_arguments.append(SetLaunchConfiguration('tf_prefix', PythonExpression(["'", LaunchConfiguration('ns'), "' + '_' if '", LaunchConfiguration('ns'), "' else ''"])))
+            SetLaunchConfiguration('tf_prefix', PythonExpression(["'", LaunchConfiguration('ns'), "' + '_' if '", LaunchConfiguration('ns'), "' else ''"]))
+            )
     declared_arguments.append(
-            SetLaunchConfiguration('kinematics_params_file', 
-                                   PythonExpression(["'",
-                                                     PathJoinSubstitution([FindPackageShare("ur_description"), "config", LaunchConfiguration("model"), "default_kinematics.yaml"]), 
-                                                     "' if '", 
-                                                     LaunchConfiguration('use_mock_hardware'), 
-                                                     "' == 'true' else '",
-                                                     PathJoinSubstitution([FindPackageShare("ur_bringup"), "config", "calibration.yaml"]),
-                                                     "'"
-                                                     ])))
+            DeclareLaunchArgument(
+                "ip", 
+                default_value="192.168.19.101",
+                description="IP address by which the robot can be reached."
+                )
+            )
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            'model',
+            default_value='ur20',
+            description="Type/series of used UR robot.",
+            choices=[
+                "ur3",
+                "ur5",
+                "ur10",
+                "ur3e",
+                "ur5e",
+                "ur7e",
+                "ur10e",
+                "ur12e",
+                "ur16e",
+                "ur8long",
+                "ur15",
+                "ur18",
+                "ur20",
+                "ur30",
+            ],
+            )
+        )
+    declared_arguments.append(
+            DeclareLaunchArgument(
+                "use_mock_hardware",
+                default_value="false",
+                description="Start robot with mock hardware mirroring command to its states.",
+                )
+            )
     declared_arguments.append(
             DeclareLaunchArgument(
                 'log_level',
@@ -194,11 +230,16 @@ def generate_launch_description():
                 choices=["info", "debug", "error"],
                 )
             )
-    declared_arguments.append(SetLaunchConfiguration('headless_mode', "true"))
-    declared_arguments.append(SetLaunchConfiguration("reverse_port","50001"))
-    declared_arguments.append(SetLaunchConfiguration("script_sender_port","50002"))
-    declared_arguments.append(SetLaunchConfiguration("trajectory_port","50003"))
-    declared_arguments.append(SetLaunchConfiguration("script_command_port","50004"))
-
+    # Parameters declared for ur launch files to work (you dont have to set these)
+    declared_arguments.append(
+            SetLaunchConfiguration('kinematics_params_file', 
+                                   PythonExpression(["'", 
+                                                     PathJoinSubstitution([FindPackageShare("ur_description"), "config", LaunchConfiguration("model"), "default_kinematics.yaml"]), 
+                                                     "' if '", 
+                                                     LaunchConfiguration('use_mock_hardware'), 
+                                                     "' == 'true' else '",
+                                                     PathJoinSubstitution([FindPackageShare("ur_bringup"), "config", "calibration.yaml"]),
+                                                     "'"
+                                                     ])))
     return LaunchDescription(declared_arguments + [OpaqueFunction(function=launch_setup)])
 
