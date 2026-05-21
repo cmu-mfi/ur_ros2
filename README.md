@@ -7,6 +7,7 @@ This workspace is divided into two primary packages:
 
   * **`ur_bringup`**: Contains essential launch files, configurations, and parameter files required to spin up the UR robot drivers, controllers, and MoveIt2 environments.
   * **`ur_examples`**: Contains sample Python nodes and scripts demonstrating how to send joint and pose goals, interact with the MoveIt2 API, use moveit_servo and perform basic operations with the UR robot using ROS 2.
+  * **`ur_robot_manager`**: Contains the ur_robot_manager node. It abstracts the moveit interface and handles other robot specific tasks like IO, payload configuration and force sensor filtering.
 
 ## ⚙️ Prerequisites and Dependencies
 
@@ -60,11 +61,12 @@ You can configure the launch file by passing these arguments via the command lin
 | `use_mock_hardware`| Start the robot with mock hardware, mirroring commands directly to its states (useful for testing without physical hardware). | `false` | `true`, `false` |
 | `log_level` | The ROS logging level to use across all nodes. | `error` | `info`, `debug`, `error` |
 
-
+**INFO:**
+Because of a rviz bug, it will not work when using a namespace.
 
 **Example:**
 ```bash
-ros2 launch ur_bringup bringup.launch.py ns:=robot_1 ip:=192.168.19.101 launch_rviz:=true launch_rviz:=true launch_servo:=false use_mock_hardware:=true model:=ur20
+ros2 launch ur_bringup bringup.launch.py ns:=ur20 ip:=192.168.19.101 launch_rviz:=false launch_servo:=false use_mock_hardware:=true model:=ur20
 ```
 
 ### 3\. Run an Example Python Script
@@ -75,14 +77,14 @@ Below is a breakdown of the available example scripts:
 
 | Script Name | Description |
 | :--- | :--- |
-| `move_example` | Sends joints and pose goals to moveit (WARNING: Will move the robot) |
+| `joint_goal_example` | Sends a joint goal to the ur_robot_manager (WARNING: Will move the robot) |
+| `pose_goal_example` | Sends a pose goal to the ur_robot_manager (WARNING: Will move the robot) |
 | `servo_example` | Sends twists and poses to moveit_servo (WARNING: Will move the robot) |
+| `servo_force` | Example of using a spacemouse and force data to control the robot using moveit servo (WARNING: Will move the robot) |
 | `io_example` | Write the IO of the robot using the `io_and_status_controller`. |
-| `tf_example` | Using transforms to obtain the current cartesian pose of the tool |
-| `force_control_example` | Use force control to have compliance in one axis (read comments in file for modifications needed) |
 | `payload_example` | Change the payload and center-of-gravity of the ur tool |
 
 **Example:**
 ```bash
-ros2 run ur_examples move_example --ros-args -p ns:=robot_1
+ros2 run ur_examples joint_goal_example --ros-args -p ns:=ur20
 ```
