@@ -11,7 +11,7 @@ namespace ur_robot_manager
     move_group_->clearPathConstraints();
     std::vector<double> home_positions = {0.0, -M_PI/2, M_PI/2, -M_PI/2, -M_PI/2, 0.0}; 
     move_group_->setJointValueTarget(home_positions);
-    move_group_->setMaxVelocityScalingFactor(0.3);
+    move_group_->setMaxVelocityScalingFactor(0.1);
     move_group_->setMaxAccelerationScalingFactor(0.1);
     moveit::planning_interface::MoveGroupInterface::Plan my_plan;
     bool success = (move_group_->plan(my_plan) == moveit::core::MoveItErrorCode::SUCCESS);
