@@ -19,13 +19,10 @@ setup(
     license='TODO: License declaration',
     entry_points={
         'console_scripts': [
-            'servo_example = ur_examples.servo_example:main',
+            'joint_goal_example = ur_examples.joint_goal_example:main',
+            'pose_goal_example = ur_examples.pose_goal_example:main',
             'servo_force = ur_examples.servo_force:main',
-            'move_example = ur_examples.move_example:main',
-            'force_control_example = ur_examples.force_control_example:main',
             'io_example = ur_examples.io_example:main',
-            'tf_example = ur_examples.tf_example:main',
-            'payload_example = ur_examples.payload_example:main',
         ],
     },
 )
