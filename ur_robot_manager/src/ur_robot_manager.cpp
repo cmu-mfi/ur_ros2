@@ -43,7 +43,7 @@ namespace ur_robot_manager
         );
     // Home Service
     service_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-    home_service_ = this->create_service<std_srvs::srv::Trigger>(
+    home_service_ = this->create_service<Home>(
         "home",
         std::bind(&UrRobotManager::handle_home_service, this, std::placeholders::_1, std::placeholders::_2),
         rclcpp::QoS(rclcpp::KeepLast(10)).reliable().durability_volatile(),

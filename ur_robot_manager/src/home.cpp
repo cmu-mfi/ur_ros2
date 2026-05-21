@@ -3,16 +3,18 @@
 namespace ur_robot_manager
 {
   void UrRobotManager::handle_home_service(
-      const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
-      std::shared_ptr<std_srvs::srv::Trigger::Response> response) 
+      const std::shared_ptr<Home::Request> request,
+      std::shared_ptr<Home::Response> response) 
   {
     (void)request;
+    double velocity_scaling = std::max(0.01, std::min(abs(request->speed), 1.0));
+    double acceleration_scaling = velocity_scaling;
     move_group_->clearPoseTargets();
     move_group_->clearPathConstraints();
     std::vector<double> home_positions = {0.0, -M_PI/2, M_PI/2, -M_PI/2, -M_PI/2, 0.0}; 
     move_group_->setJointValueTarget(home_positions);
-    move_group_->setMaxVelocityScalingFactor(0.1);
-    move_group_->setMaxAccelerationScalingFactor(0.1);
+    move_group_->setMaxVelocityScalingFactor(velocity_scaling);
+    move_group_->setMaxAccelerationScalingFactor(acceleration_scaling);
     moveit::planning_interface::MoveGroupInterface::Plan my_plan;
     bool success = (move_group_->plan(my_plan) == moveit::core::MoveItErrorCode::SUCCESS);
     if (!success) {

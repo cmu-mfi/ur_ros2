@@ -11,6 +11,7 @@
 
 #include "robot_manager_interfaces/action/joint_goal.hpp"
 #include "robot_manager_interfaces/action/pose_goal.hpp"
+#include "robot_manager_interfaces/srv/home.hpp"
 #include "std_srvs/srv/trigger.hpp"
 
 namespace ur_robot_manager
@@ -22,6 +23,7 @@ namespace ur_robot_manager
       using JointGoalHandle = rclcpp_action::ServerGoalHandle<JointGoal>;
       using PoseGoal = robot_manager_interfaces::action::PoseGoal;
       using PoseGoalHandle = rclcpp_action::ServerGoalHandle<PoseGoal>;
+      using Home = robot_manager_interfaces::srv::Home;
 
       UrRobotManager();
       void setup();
@@ -30,7 +32,7 @@ namespace ur_robot_manager
       // Servers and Clients
       rclcpp_action::Server<JointGoal>::SharedPtr joint_goal_action_server_;
       rclcpp_action::Server<PoseGoal>::SharedPtr pose_goal_action_server_;
-      rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr home_service_;
+      rclcpp::Service<Home>::SharedPtr home_service_;
       rclcpp::CallbackGroup::SharedPtr service_cb_group_;
 
       // Callbacks
@@ -42,7 +44,7 @@ namespace ur_robot_manager
       rclcpp_action::CancelResponse pose_goal_handle_cancel(const std::shared_ptr<PoseGoalHandle> goal_handle);
       void pose_goal_handle_accepted(const std::shared_ptr<PoseGoalHandle> goal_handle);
       void pose_goal_handle_execution(const std::shared_ptr<PoseGoalHandle> goal_handle);
-      void handle_home_service(const std::shared_ptr<std_srvs::srv::Trigger::Request> request, std::shared_ptr<std_srvs::srv::Trigger::Response> response);
+      void handle_home_service(const std::shared_ptr<Home::Request> request, std::shared_ptr<Home::Response> response);
 
       // Helper Functions
       double calculate_joint_distance(const std::vector<double>& current, const std::vector<double>& target);
