@@ -3,10 +3,10 @@ This repository contains packages and examples for integrating and controlling U
 
 ## 📂 Repository Structure
 
-This workspace is divided into two primary packages:
+This workspace is divided into multiple primary packages:
 
-  * **`ur_bringup`**: Contains essential launch files, configurations, and parameter files required to spin up the UR robot drivers, controllers, and MoveIt2 environments.
-  * **`ur_examples`**: Contains sample Python nodes and scripts demonstrating how to send joint and pose goals, interact with the MoveIt2 API, use moveit_servo and perform basic operations with the UR robot using ROS 2.
+  * **`ur_bringup`**: Contains essential launch files, configurations, and parameter files required to spin up the robot drivers, controllers, MoveIt2 nodes and the robot manager.
+  * **`ur_examples`**: Contains sample Python nodes and scripts demonstrating how to send joint and pose goals, interact with the MoveIt2 API, use moveit_servo and perform basic operations with the robot using ROS 2.
   * **`ur_robot_manager`**: Contains the ur_robot_manager node. It abstracts the moveit interface and handles other robot specific tasks like IO, payload configuration and force sensor filtering.
 
 ## ⚙️ Prerequisites and Dependencies
@@ -62,7 +62,7 @@ You can configure the launch file by passing these arguments via the command lin
 | `log_level` | The ROS logging level to use across all nodes. | `error` | `info`, `debug`, `error` |
 
 **INFO:**
-Because of a rviz bug, it will not work when using a namespace.
+Because of a bug in RVIZ2, RVIZ2 will not work when using a namespace!
 
 **Example:**
 ```bash
