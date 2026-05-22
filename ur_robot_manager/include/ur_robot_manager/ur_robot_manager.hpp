@@ -12,11 +12,9 @@
 #include "robot_manager_interfaces/action/joint_goal.hpp"
 #include "robot_manager_interfaces/action/pose_goal.hpp"
 #include "robot_manager_interfaces/srv/home.hpp"
-#include "std_srvs/srv/trigger.hpp"
 
 namespace ur_robot_manager
 {
-
   class UrRobotManager : public rclcpp::Node {
     public:
       using JointGoal = robot_manager_interfaces::action::JointGoal;

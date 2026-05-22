@@ -6,7 +6,6 @@ namespace ur_robot_manager
       const std::shared_ptr<Home::Request> request,
       std::shared_ptr<Home::Response> response) 
   {
-    (void)request;
     double velocity_scaling = std::max(0.01, std::min(abs(request->speed), 1.0));
     double acceleration_scaling = velocity_scaling;
     move_group_->clearPoseTargets();
