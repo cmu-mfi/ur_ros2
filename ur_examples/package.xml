@@ -5,7 +5,7 @@
   <version>1.0.0</version>
   <description>Examples for ur_ros2</description>
   <maintainer email="alex@minor.pw">Alexander Minor</maintainer>
-  <license>TODO: License declaration</license>
+  <license>BSD-3-Clause</license>
 
   <depend>ur</depend>
   <depend>moveit</depend>

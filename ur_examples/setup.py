@@ -16,7 +16,7 @@ setup(
     maintainer='alex',
     maintainer_email='alex@todo.todo',
     description='TODO: Package description',
-    license='TODO: License declaration',
+    license='BSD-3-Clause',
     entry_points={
         'console_scripts': [
             'joint_goal_example = ur_examples.joint_goal_example:main',
