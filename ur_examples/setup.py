@@ -22,7 +22,10 @@ setup(
             'joint_goal_example = ur_examples.joint_goal_example:main',
             'pose_goal_example = ur_examples.pose_goal_example:main',
             'servo_force = ur_examples.servo_force:main',
+            'servo_example = ur_examples.servo_example:main',
             'io_example = ur_examples.io_example:main',
+            'payload_example = ur_examples.payload_example:main',
+            'move_action_example = ur_examples.move_action_example:main',
         ],
     },
 )

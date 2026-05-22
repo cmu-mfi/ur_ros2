@@ -83,6 +83,7 @@ Below is a breakdown of the available example scripts:
 | `servo_force` | Example of using a spacemouse and force data to control the robot using moveit servo (WARNING: Will move the robot) |
 | `io_example` | Write the IO of the robot using the `io_and_status_controller`. |
 | `payload_example` | Change the payload and center-of-gravity of the ur tool |
+| `move_action_example` | Use move_action interface of the move_group directly and skip ur_robot_manager |
 
 **Example:**
 ```bash
