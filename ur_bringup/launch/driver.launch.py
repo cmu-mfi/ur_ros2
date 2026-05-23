@@ -32,17 +32,13 @@ def launch_setup(context):
 
     # Packages
     config_pkg_name = "ur_bringup"
-    description_pkg_name = "ur_robot_driver"
 
     # ROS2 Controllers
     ros2_controllers_file = PathJoinSubstitution(
         [FindPackageShare(config_pkg_name), "config", "ros2_controllers.yaml"]
     )
     # Robot Description
-    description_file = PathJoinSubstitution([FindPackageShare(description_pkg_name), "urdf", "ur.urdf.xacro"])
-    script_filename = PathJoinSubstitution([FindPackageShare("ur_client_library"), "resources", "external_control.urscript"])
-    input_recipe_filename = PathJoinSubstitution([FindPackageShare("ur_robot_driver"), "resources", "rtde_input_recipe.txt"])
-    output_recipe_filename = PathJoinSubstitution([FindPackageShare("ur_robot_driver"), "resources", "rtde_output_recipe.txt"])
+    description_file = PathJoinSubstitution([FindPackageShare(config_pkg_name), "urdf", "ur.urdf.xacro"])
     robot_description_content = Command(
         [
             PathJoinSubstitution([FindExecutable(name="xacro")]),
@@ -52,30 +48,17 @@ def launch_setup(context):
             "robot_ip:=",
             ip,
             " ",
-            "ur_type:=",
-            model,
-            " ",
             "tf_prefix:=",
             tf_prefix,
             " ",
             "kinematics_params:=",
             kinematics_params_file,
             " ",
-            "name:=",
+            "model:=",
             model,
             " ",
             "use_mock_hardware:=",
             use_mock_hardware,
-            " ",
-            "headless_mode:=true",
-            " ",
-            "safety_limits:=true",
-            " ",
-            "script_filename:=", script_filename,
-            " ",
-            "input_recipe_filename:=", input_recipe_filename,
-            " ",
-            "output_recipe_filename:=", output_recipe_filename,
         ]
     )
     robot_description = {
