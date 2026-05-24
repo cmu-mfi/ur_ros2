@@ -17,12 +17,6 @@
     ur_configuration_controller:
       type: ur_controllers/URConfigurationController
     
-    passthrough_trajectory_controller:
-      type: ur_controllers/PassthroughTrajectoryController
-
-    force_mode_controller:
-      type: ur_controllers/ForceModeController
-
 /**/io_and_status_controller:
   ros__parameters:
     tf_prefix: "$(var tf_prefix)"
@@ -51,25 +45,6 @@
           sampling_frequency: 500.0 
           damping_frequency: 2.0 
           damping_intensity: 0.0
-
-/**/passthrough_trajectory_controller:
-  ros__parameters:
-    tf_prefix: "$(var tf_prefix)"
-    joints:
-      - $(var tf_prefix)shoulder_pan_joint
-      - $(var tf_prefix)shoulder_lift_joint
-      - $(var tf_prefix)elbow_joint
-      - $(var tf_prefix)wrist_1_joint
-      - $(var tf_prefix)wrist_2_joint
-      - $(var tf_prefix)wrist_3_joint
-    state_interfaces:
-      - position
-      - velocity
-    speed_scaling_interface_name: $(var tf_prefix)speed_scaling/speed_scaling_factor
-
-/**/force_mode_controller:
-  ros__parameters:
-    tf_prefix: "$(var tf_prefix)"
 
 /**/joint_trajectory_controller:
   ros__parameters:

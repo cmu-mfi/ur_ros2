@@ -41,4 +41,3 @@
       scene_collision_proximity_threshold: 0.02
       collision_distance_safety_factor: 1000.0
       min_allowable_collision_distance: 0.01
-

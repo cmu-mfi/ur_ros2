@@ -1,70 +1,75 @@
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, SetLaunchConfiguration, OpaqueFunction
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterFile
 from launch_ros.substitutions import FindPackageShare
-from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution, PythonExpression 
 from launch_ros.parameter_descriptions import ParameterValue
 from launch.conditions import UnlessCondition
 
 def launch_setup(context):
+    # Load parameters
+    log_level = context.launch_configurations['log_level']
     ns = context.launch_configurations['ns']
     tf_prefix = context.launch_configurations['tf_prefix']
+    model = context.launch_configurations['model']
     ip = context.launch_configurations['ip']
     use_mock_hardware = context.launch_configurations['use_mock_hardware']
-    log_level = context.launch_configurations['log_level']
-    model = context.launch_configurations['model']
     kinematics_params_file = context.launch_configurations['kinematics_params_file']
 
+    # print parameters
     print("")
-    print("Starting bringup with paramaters:")
+    print("Starting driver with paramaters:")
     print(" log_level:           " + log_level)
-    if use_mock_hardware == "false":
-        print(" ip:                  " + ip)
     if ns == "":
         print(" ns:                  " + "/")
     else:
-        print(" ns:                  " + ns)
-    print(" use_mock_hardware:   " + use_mock_hardware)
+        print(" ns:                  " + "/" + ns)
     print(" model:               " + model)
+    print(" use_mock_hardware:   " + use_mock_hardware)
+    if use_mock_hardware == "false":
+        print(" ip:                  " + ip)
     print("")
 
-    # Packages
-    config_pkg_name = "ur_bringup"
+    # prefix for packages
+    pkg_prefix = "ur_"
 
-    # ROS2 Controllers
-    ros2_controllers_file = PathJoinSubstitution(
-        [FindPackageShare(config_pkg_name), "config", "ros2_controllers.yaml"]
-    )
-    # Robot Description
-    description_file = PathJoinSubstitution([FindPackageShare(config_pkg_name), "urdf", "ur.urdf.xacro"])
-    robot_description_content = Command(
-        [
-            PathJoinSubstitution([FindExecutable(name="xacro")]),
-            " ",
-            description_file,
-            " ",
-            "robot_ip:=",
-            ip,
-            " ",
-            "tf_prefix:=",
-            tf_prefix,
-            " ",
-            "kinematics_params:=",
-            kinematics_params_file,
-            " ",
-            "model:=",
-            model,
-            " ",
-            "use_mock_hardware:=",
-            use_mock_hardware,
-        ]
-    )
+    # robot description
+    urdf_file_path = PathJoinSubstitution(
+            [FindPackageShare(pkg_prefix+"bringup"), "urdf", "ur.urdf.xacro"]
+            )
+    urdf_content = Command(
+            [
+                PathJoinSubstitution([FindExecutable(name="xacro")]),
+                " ",
+                urdf_file_path,
+                " ",
+                "robot_ip:=",
+                ip,
+                " ",
+                "tf_prefix:=",
+                tf_prefix,
+                " ",
+                "kinematics_params:=",
+                kinematics_params_file,
+                " ",
+                "model:=",
+                model,
+                " ",
+                "use_mock_hardware:=",
+                use_mock_hardware,
+                ]
+            )
     robot_description = {
-            "robot_description": ParameterValue(robot_description_content, value_type=str)
+            "robot_description": ParameterValue(urdf_content, value_type=str)
             }
 
+    # ros2_control config
+    ros2_controllers_file = PathJoinSubstitution(
+            [FindPackageShare(pkg_prefix+"bringup"), "config", "ros2_controllers.yaml"]
+            )
+
+    # nodes
     nodes = []
 
     nodes.append(Node(
@@ -87,6 +92,7 @@ def launch_setup(context):
         arguments=["--ros-args", "--log-level", log_level],
         output="screen",
         ))
+
     nodes.append(Node(
         package="ur_robot_driver",
         condition=UnlessCondition(use_mock_hardware),
@@ -97,7 +103,7 @@ def launch_setup(context):
         emulate_tty=True,
         parameters=[{"robot_ip": ip}],
         arguments=["--ros-args", "--log-level", log_level],
-    ))
+        ))
 
     nodes.append(Node(
         package="ur_robot_driver",
@@ -109,9 +115,9 @@ def launch_setup(context):
         parameters=[
             {"headless_mode": True},
             {"robot_ip": ip},
-        ],
+            ],
         arguments=["--ros-args", "--log-level", log_level],
-    ))
+        ))
 
     nodes.append(Node(
         package="ur_robot_driver",
@@ -121,43 +127,43 @@ def launch_setup(context):
         namespace=ns,
         condition=UnlessCondition(use_mock_hardware),
         arguments=["--ros-args", "--log-level", log_level],
-    ))
+        ))
 
-    def controller_spawner(controllers, active=True):
-        inactive_flags = ["--inactive"] if not active else []
+    def controller_spawner(controllers):
         return Node(
-            package="controller_manager",
-            executable="spawner",
-            namespace=ns,
-            arguments=[
-                "--controller-manager-timeout",
-                "10",
+                package="controller_manager",
+                executable="spawner",
+                namespace=ns,
+                arguments=[
+                    "--controller-manager-timeout",
+                    "10",
+                    ]
+                + controllers
+                + ["--ros-args", "--log-level", log_level],
+                )
+
+    controllers = [
+            "joint_state_broadcaster",
+            "io_and_status_controller",
+            "force_torque_sensor_broadcaster",
+            "ur_configuration_controller",
+            "joint_trajectory_controller",
             ]
-            + inactive_flags
-            + controllers
-            + ["--ros-args", "--log-level", log_level],
-        )
 
-    controllers_active = [
-        "joint_state_broadcaster",
-        "io_and_status_controller",
-        "force_torque_sensor_broadcaster",
-        "ur_configuration_controller",
-        "joint_trajectory_controller",
-    ]
-    # controllers_inactive = [
-    #     "passthrough_trajectory_controller",
-    #     "force_mode_controller",
-    # ]
-
-    nodes.append(controller_spawner(controllers_active, active=True))
-    # nodes.append(controller_spawner(controllers_inactive, active=False))
+    nodes.append(controller_spawner(controllers))
 
     return nodes
 
-
 def generate_launch_description():
     declared_arguments = []
+    declared_arguments.append(
+            DeclareLaunchArgument(
+                'log_level',
+                default_value='error',
+                description="Log Level to use for all nodes",
+                choices=["info", "debug", "error"],
+                )
+            )
     declared_arguments.append(
             DeclareLaunchArgument(
                 'ns',
@@ -170,34 +176,34 @@ def generate_launch_description():
             )
     declared_arguments.append(
             DeclareLaunchArgument(
+                'model',
+                default_value='ur20',
+                description="Type/series of used UR robot.",
+                choices=[
+                    "ur3",
+                    "ur5",
+                    "ur10",
+                    "ur3e",
+                    "ur5e",
+                    "ur7e",
+                    "ur10e",
+                    "ur12e",
+                    "ur16e",
+                    "ur8long",
+                    "ur15",
+                    "ur18",
+                    "ur20",
+                    "ur30",
+                    ],
+                )
+            )
+    declared_arguments.append(
+            DeclareLaunchArgument(
                 "ip", 
                 default_value="192.168.19.101",
                 description="IP address by which the robot can be reached."
                 )
             )
-    declared_arguments.append(
-        DeclareLaunchArgument(
-            'model',
-            default_value='ur20',
-            description="Type/series of used UR robot.",
-            choices=[
-                "ur3",
-                "ur5",
-                "ur10",
-                "ur3e",
-                "ur5e",
-                "ur7e",
-                "ur10e",
-                "ur12e",
-                "ur16e",
-                "ur8long",
-                "ur15",
-                "ur18",
-                "ur20",
-                "ur30",
-            ],
-            )
-        )
     declared_arguments.append(
             DeclareLaunchArgument(
                 "use_mock_hardware",
@@ -205,15 +211,6 @@ def generate_launch_description():
                 description="Start robot with mock hardware mirroring command to its states.",
                 )
             )
-    declared_arguments.append(
-            DeclareLaunchArgument(
-                'log_level',
-                default_value='error',
-                description="Log Level to use for all nodes",
-                choices=["info", "debug", "error"],
-                )
-            )
-    # Parameters declared for ur launch files to work (you dont have to set these)
     declared_arguments.append(
             SetLaunchConfiguration('kinematics_params_file', 
                                    PythonExpression(["'", 
@@ -225,4 +222,3 @@ def generate_launch_description():
                                                      "'"
                                                      ])))
     return LaunchDescription(declared_arguments + [OpaqueFunction(function=launch_setup)])
-

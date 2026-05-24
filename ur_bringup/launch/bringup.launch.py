@@ -4,40 +4,46 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import PathJoinSubstitution
 from launch_ros.substitutions import FindPackageShare
 
-def launch_setup(context, *args, **kwargs):
-    ip = context.launch_configurations['ip']
-    model = context.launch_configurations['model']
+def launch_setup(context):
+    # Load parameters
+    log_level = context.launch_configurations['log_level']
     ns = context.launch_configurations['ns']
+    model = context.launch_configurations['model']
+    ip = context.launch_configurations['ip']
     use_mock_hardware = context.launch_configurations["use_mock_hardware"]
-    log_level = context.launch_configurations["log_level"]
     launch_rviz = context.launch_configurations["launch_rviz"]
     launch_servo = context.launch_configurations["launch_servo"]
 
+    # print parameters
     print("")
     print("Starting bringup with paramaters:")
     print(" log_level:           " + log_level)
-    print(" ip:                  " + ip)
-    print(" model:               " + model)
     if ns == "":
         print(" ns:                  " + "/")
     else:
-        print(" ns:                  " + ns)
+        print(" ns:                  " + "/" + ns)
+    print(" model:               " + model)
+    print(" ip:                  " + ip)
     print(" use_mock_hardware:   " + use_mock_hardware)
     print(" launch_servo:        " + launch_servo)
     print(" launch_rviz:         " + launch_rviz)
     print("")
 
-    driver_launch_path = PathJoinSubstitution([FindPackageShare('ur_bringup'), 'launch', 'driver.launch.py'])
-    moveit_launch_path = PathJoinSubstitution([FindPackageShare('ur_bringup'), 'launch', 'moveit.launch.py'])
-    robot_manager_launch_path = PathJoinSubstitution([FindPackageShare('ur_bringup'), 'launch', 'robot_manager.launch.py'])
+    # prefix for packages
+    pkg_prefix = "ur_"
+
+    # launch files
+    driver_launch_path = PathJoinSubstitution([FindPackageShare(pkg_prefix+'bringup'), 'launch', 'driver.launch.py'])
+    moveit_launch_path = PathJoinSubstitution([FindPackageShare(pkg_prefix+'bringup'), 'launch', 'moveit.launch.py'])
+    robot_manager_launch_path = PathJoinSubstitution([FindPackageShare(pkg_prefix+'bringup'), 'launch', 'robot_manager.launch.py'])
 
     driver = IncludeLaunchDescription(
             PythonLaunchDescriptionSource(driver_launch_path),
             launch_arguments={
                 'log_level': log_level,
-                'ip': ip,
-                'model': model,
                 'ns': ns,
+                'model': model,
+                'ip': ip,
                 'use_mock_hardware': use_mock_hardware,
                 }.items()
             )
@@ -48,30 +54,30 @@ def launch_setup(context, *args, **kwargs):
                 'log_level': log_level,
                 'ns': ns,
                 'model': model,
-                'launch_rviz': launch_rviz,
                 'launch_servo': launch_servo,
+                'launch_rviz': launch_rviz,
                 }.items()
             )
+
     robot_manager = IncludeLaunchDescription(
             PythonLaunchDescriptionSource(robot_manager_launch_path),
             launch_arguments={
                 'log_level': log_level,
-                'model': model,
                 'ns': ns,
+                'model': model,
                 }.items()
             )
-
 
     return [driver, moveit, robot_manager]
 
 def generate_launch_description():
-    # add launch arguments
     declared_arguments = []
     declared_arguments.append(
             DeclareLaunchArgument(
-                'ip',
-                default_value='192.168.19.101',
-                description='ip address of robot'
+                'log_level',
+                default_value='error',
+                description="Log Level to use for all nodes",
+                choices=["info", "debug", "error"],
                 )
             )
     declared_arguments.append(
@@ -80,12 +86,6 @@ def generate_launch_description():
                 default_value='',
                 description='namespace of the robot (used as prefix, so needed if running multiple robots)'
                 )
-            )
-    declared_arguments.append(
-            DeclareLaunchArgument("launch_rviz", default_value="false", description="Launch RViz?"),
-            )
-    declared_arguments.append(
-            DeclareLaunchArgument("launch_servo", default_value="true", description="Launch Moveit Servo?"),
             )
     declared_arguments.append(
             DeclareLaunchArgument(
@@ -111,6 +111,13 @@ def generate_launch_description():
                 )
             )
     declared_arguments.append(
+            DeclareLaunchArgument(
+                'ip',
+                default_value='192.168.19.101',
+                description='ip address of robot'
+                )
+            )
+    declared_arguments.append(
         DeclareLaunchArgument(
             "use_mock_hardware",
             default_value="false",
@@ -118,12 +125,9 @@ def generate_launch_description():
         )
     )
     declared_arguments.append(
-            DeclareLaunchArgument(
-                'log_level',
-                default_value='error',
-                description="Log Level to use for all nodes",
-                choices=["info", "debug", "error"],
-                )
+            DeclareLaunchArgument("launch_servo", default_value="true", description="Launch Moveit Servo?"),
+            )
+    declared_arguments.append(
+            DeclareLaunchArgument("launch_rviz", default_value="false", description="Launch RViz?"),
             )
     return LaunchDescription(declared_arguments + [OpaqueFunction(function=launch_setup)])
-

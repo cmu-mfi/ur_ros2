@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<robot xmlns:xacro="http://wiki.ros.org/xacro" name="$(arg name)">
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="$(arg model)">
 
-  <xacro:arg name="name" default="ur"/>
+  <xacro:arg name="model" default="ur20"/>
   <xacro:arg name="tf_prefix" default=""/>
 
   <xacro:include filename="$(find ur_bringup)/srdf/ur_macro.srdf.xacro"/>
