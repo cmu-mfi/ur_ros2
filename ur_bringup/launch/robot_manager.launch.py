@@ -14,6 +14,7 @@ def launch_setup(context):
     ns = context.launch_configurations['ns']
     tf_prefix = context.launch_configurations['tf_prefix']
     model = context.launch_configurations['model']
+    kinematics_params_file = context.launch_configurations['kinematics_params_file']
 
     # print parameters
     print("")
@@ -44,6 +45,9 @@ def launch_setup(context):
                 " ",
                 "tf_prefix:=",
                 tf_prefix,
+                " ",
+                "kinematics_params:=",
+                kinematics_params_file,
                 ])
     robot_description = {
             "robot_description": ParameterValue(urdf_content, value_type=str)
@@ -164,4 +168,14 @@ def generate_launch_description():
                     ],
                 )
             )
+    declared_arguments.append(
+            SetLaunchConfiguration('kinematics_params_file', 
+                                   PythonExpression(["'", 
+                                                     PathJoinSubstitution([FindPackageShare("ur_description"), "config", LaunchConfiguration("model"), "default_kinematics.yaml"]), 
+                                                     "' if '", 
+                                                     LaunchConfiguration('use_mock_hardware'), 
+                                                     "' == 'true' else '",
+                                                     PathJoinSubstitution([FindPackageShare("ur_bringup"), "config", "calibration.yaml"]),
+                                                     "'"
+                                                     ])))
     return LaunchDescription(declared_arguments + [OpaqueFunction(function=launch_setup)])
