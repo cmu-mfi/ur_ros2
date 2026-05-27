@@ -47,6 +47,7 @@ namespace ur_robot_manager
       // Helper Functions
       double calculate_joint_distance(const std::vector<double>& current, const std::vector<double>& target);
       double calculate_cartesian_distance(const geometry_msgs::msg::Point& p1, const geometry_msgs::msg::Point& p2);
+      bool is_frame_tool0_child(const std::string& target_frame);
 
       // Variables
       std::string ns_;
