@@ -45,7 +45,7 @@
   <xacro:arg name="simulation_controllers" default="" />
 
   <!-- initial position for simulations (Mock Hardware, Gazebo, Ignition) -->
-  <xacro:arg name="initial_positions_file" default="$(find ur_description)/config/initial_positions.yaml"/>
+  <xacro:arg name="initial_positions_file" default="$(find ur_bringup)/config/initial_positions.yaml"/>
 
   <!-- convert to property to use substitution in function -->
   <xacro:property name="initial_positions_file" default="$(arg initial_positions_file)"/>
