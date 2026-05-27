@@ -1,6 +1,7 @@
 import rclpy
 from rclpy.node import Node
-from rclpy.action import ActionClient
+from rclpy.action.client import ActionClient
+from action_msgs.msg import GoalStatus
 
 import threading
 import time
@@ -18,6 +19,16 @@ class JointGoalExample(Node):
         self.joint_goal_client = ActionClient(self, JointGoal, self.ns + "joint_goal")
         self.joint_goal_client.wait_for_server()
 
+    def run_action(self, action_client: ActionClient, goal_msg, show_progress = False):
+        if show_progress:
+            result = action_client.send_goal(goal_msg, feedback_callback=lambda msg: self.get_logger().info(f'Progress: {msg.feedback.progress:.1f}%'))
+        else:
+            result = action_client.send_goal(goal_msg)
+        status = result.status
+        if status != GoalStatus.STATUS_SUCCEEDED:
+            self.get_logger().error(result.result.message)
+            exit(1)
+
 def main(args=None):
     rclpy.init(args=args)
     node = JointGoalExample()
@@ -32,19 +43,16 @@ def main(args=None):
         goal_msg.velocity_scaling = 0.1
         goal_msg.acceleration_scaling = 0.1
 
-        # Blocking Execution without Feedback
+        # Execution without Feedback
         node.get_logger().info("Starting Execution")
-        node.joint_goal_client.send_goal(goal_msg)
+        node.run_action(node.joint_goal_client, goal_msg)
         node.get_logger().info("Finished Execution")
 
-        # Asynchronous Execution with Feedback
+        # Execution with Feedback
         goal_msg.positions = [0.3, -2.0, 2.0, -2.0, -2.0, 0.5]
         node.get_logger().info("Starting Execution")
-        send_future = node.joint_goal_client.send_goal_async(goal_msg, feedback_callback=lambda msg: node.get_logger().info(f'Progress: {msg.feedback.progress:.1f}%'))
-        while not send_future.done(): continue # Wait for Goal to be accepted
-        result = send_future.result().get_result() # Wait for Goal to be executed
-        if not result.result.success: node.get_logger().error(result.result.message)
-        else: node.get_logger().info("Finished Execution")
+        node.run_action(node.joint_goal_client, goal_msg, True)
+        node.get_logger().info("Finished Execution")
 
         # Cancelling Execution (works but errors out the robot because of rapid deceleration)
         goal_msg.positions = [0.0, -math.pi/2, math.pi/2, -math.pi/2, -math.pi/2, 0.0]
