@@ -1,9 +1,51 @@
-#include "ur_robot_manager/ur_robot_manager.hpp"
+#include "ur_robot_manager/ee_state_publisher.hpp"
+#include <tf2_eigen/tf2_eigen.hpp>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#include <geometry_msgs/msg/vector3_stamped.hpp>
 
-namespace ur_robot_manager {
+EeStatePublisher::EeStatePublisher() : Node("ee_state_publisher", rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true)) {
+  ns_ = this->get_parameter("ns").as_string();
+  tf_prefix_ = this->get_parameter("tf_prefix").as_string();
+  planning_group_ = tf_prefix_ + "manipulator"; 
+  RCLCPP_INFO(this->get_logger(), "Initilizing EE State Publisher with namespace: /%s and planning group: %s", ns_.c_str(), planning_group_.c_str());
 
-void UrRobotManager::publishState() {
-  auto state = move_group_->getCurrentState(0.1);
+  // TF setup
+  tf_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock()); 
+  tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+
+  pose_pub_ = create_publisher<geometry_msgs::msg::PoseStamped>("ee_pose", 10);
+  twist_pub_ = create_publisher<geometry_msgs::msg::TwistStamped>("ee_twist", 10);
+  accel_pub_ = create_publisher<geometry_msgs::msg::AccelStamped>("ee_accel", 10);
+
+}
+
+void EeStatePublisher::initMoveGroup() {
+  moveit::planning_interface::MoveGroupInterface::Options options(planning_group_, "robot_description", "/"+ns_);
+  move_group_ = std::make_unique<moveit::planning_interface::MoveGroupInterface>(shared_from_this(), options);
+}
+
+void EeStatePublisher::setupPublisher() {
+    
+  joint_model_group_ = move_group_->getRobotModel()->getJointModelGroup(planning_group_);
+  ee_link_ = move_group_->getEndEffectorLink();
+
+  if (ee_link_.empty()) {
+    const auto &links = joint_model_group_->getLinkModelNames();
+    ee_link_ = links.back();
+    RCLCPP_WARN(get_logger(), "No EE link configured. Using last link: %s",
+                ee_link_.c_str());
+  }
+
+  timer_ = create_wall_timer(std::chrono::milliseconds(100),
+                            std::bind(&EeStatePublisher::publishState, this));
+
+  RCLCPP_INFO(get_logger(), "Publishing EE state for link: %s", ee_link_.c_str());    
+
+}
+
+void EeStatePublisher::publishState() {
+  
+  auto state = move_group_->getCurrentState();
 
   if (!state) {
     RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
@@ -11,86 +53,143 @@ void UrRobotManager::publishState() {
     return;
   }
 
+  const std::string &planning_frame = tf_prefix_ + "base";
+  const std::string &root_frame = move_group_->getRobotModel()->getModelFrame();
+  
   //----------------------------------------------------
-  // Pose
+  // Pose - transform from root_frame to planning_frame (base_link)
   //--------------------------------------------------
 
-  const Eigen::Isometry3d &tf = state->getGlobalLinkTransform(ee_link_);
+  // Get transform from root frame to ee_link
+  const Eigen::Isometry3d &root_T_ee = state->getGlobalLinkTransform(ee_link_);
 
+  // Create pose message in root frame first
+  geometry_msgs::msg::PoseStamped root_pose_msg;
+  root_pose_msg.header.stamp = now();
+  root_pose_msg.header.frame_id = root_frame;
+  root_pose_msg.pose.position.x = root_T_ee.translation().x();
+  root_pose_msg.pose.position.y = root_T_ee.translation().y();
+  root_pose_msg.pose.position.z = root_T_ee.translation().z();
+  Eigen::Quaterniond q(root_T_ee.rotation());
+  root_pose_msg.pose.orientation.x = q.x();
+  root_pose_msg.pose.orientation.y = q.y();
+  root_pose_msg.pose.orientation.z = q.z();
+  root_pose_msg.pose.orientation.w = q.w();
+
+  // Transform pose to planning_frame
   geometry_msgs::msg::PoseStamped pose_msg;
-
-  pose_msg.header.stamp = now();
-  pose_msg.header.frame_id = move_group_->getPlanningFrame();
-
-  pose_msg.pose.position.x = tf.translation().x();
-  pose_msg.pose.position.y = tf.translation().y();
-  pose_msg.pose.position.z = tf.translation().z();
-
-  Eigen::Quaterniond q(tf.rotation());
-
-  pose_msg.pose.orientation.x = q.x();
-  pose_msg.pose.orientation.y = q.y();
-  pose_msg.pose.orientation.z = q.z();
-  pose_msg.pose.orientation.w = q.w();
+  try {
+    tf_buffer_->transform(root_pose_msg, pose_msg, planning_frame);
+  } catch (const tf2::TransformException &ex) {
+    RCLCPP_WARN(get_logger(), "Could not transform pose to %s: %s", 
+                planning_frame.c_str(), ex.what());
+    return;
+  }
 
   //----------------------------------------------------
-  // Jacobian
+  // Twist - transform from root_frame to planning_frame
   //--------------------------------------------------
 
+  // Get jacobian - velocities are in root frame
   Eigen::MatrixXd jacobian;
-
   state->getJacobian(joint_model_group_, state->getLinkModel(ee_link_),
                      Eigen::Vector3d::Zero(), jacobian);
-
-  //----------------------------------------------------
-  // Joint velocities
-  //--------------------------------------------------
 
   Eigen::VectorXd qdot;
   state->copyJointGroupVelocities(joint_model_group_, qdot);
 
-  Eigen::VectorXd twist = jacobian * qdot;
+  Eigen::VectorXd twist_root = jacobian * qdot;
 
+  // Transform twist linear and angular components from root_frame to planning_frame
   geometry_msgs::msg::TwistStamped twist_msg;
-
-  twist_msg.header = pose_msg.header;
-
-  if (twist.size() >= 6) {
-    twist_msg.twist.linear.x = twist(0);
-    twist_msg.twist.linear.y = twist(1);
-    twist_msg.twist.linear.z = twist(2);
-
-    twist_msg.twist.angular.x = twist(3);
-    twist_msg.twist.angular.y = twist(4);
-    twist_msg.twist.angular.z = twist(5);
+  try {
+    // Transform linear velocity (vector) from root_frame to planning_frame
+    Eigen::Vector3d linear_vec(twist_root(0), twist_root(1), twist_root(2));
+    Eigen::Vector3d angular_vec(twist_root(3), twist_root(4), twist_root(5));
+    
+    geometry_msgs::msg::Vector3Stamped root_linear_stamped, planning_linear_stamped;
+    geometry_msgs::msg::Vector3Stamped root_angular_stamped, planning_angular_stamped;
+    
+    root_linear_stamped.vector.x = linear_vec.x(); 
+    root_linear_stamped.vector.y = linear_vec.y(); 
+    root_linear_stamped.vector.z = linear_vec.z();
+    root_angular_stamped.vector.x = angular_vec.x(); 
+    root_angular_stamped.vector.y = angular_vec.y(); 
+    root_angular_stamped.vector.z = angular_vec.z();
+    
+    // Set frame_id and timestamp for transform
+    root_linear_stamped.header.stamp = now();
+    root_linear_stamped.header.frame_id = root_frame;
+    root_angular_stamped.header.stamp = now();
+    root_angular_stamped.header.frame_id = root_frame;
+    
+    tf_buffer_->transform(root_linear_stamped, planning_linear_stamped, planning_frame);
+    tf_buffer_->transform(root_angular_stamped, planning_angular_stamped, planning_frame);
+    
+    twist_msg.header.stamp = now();
+    twist_msg.header.frame_id = planning_frame;
+    twist_msg.twist.linear.x = planning_linear_stamped.vector.x;
+    twist_msg.twist.linear.y = planning_linear_stamped.vector.y;
+    twist_msg.twist.linear.z = planning_linear_stamped.vector.z;
+    twist_msg.twist.angular.x = planning_angular_stamped.vector.x;
+    twist_msg.twist.angular.y = planning_angular_stamped.vector.y;
+    twist_msg.twist.angular.z = planning_angular_stamped.vector.z;
+  } catch (const tf2::TransformException &ex) {
+    RCLCPP_WARN(get_logger(), "Could not transform twist to %s: %s", 
+                planning_frame.c_str(), ex.what());
+    return;
   }
 
   //----------------------------------------------------
-  // Joint accelerations
+  // Acceleration - transform from root_frame to planning_frame
   //--------------------------------------------------
 
   Eigen::VectorXd qddot;
-
   try {
     state->copyJointGroupAccelerations(joint_model_group_, qddot);
   } catch (...) {
     qddot = Eigen::VectorXd::Zero(joint_model_group_->getVariableCount());
   }
 
-  Eigen::VectorXd accel = jacobian * qddot;
+  Eigen::VectorXd accel_root = jacobian * qddot;
 
   geometry_msgs::msg::AccelStamped accel_msg;
-
-  accel_msg.header = pose_msg.header;
-
-  if (accel.size() >= 6) {
-    accel_msg.accel.linear.x = accel(0);
-    accel_msg.accel.linear.y = accel(1);
-    accel_msg.accel.linear.z = accel(2);
-
-    accel_msg.accel.angular.x = accel(3);
-    accel_msg.accel.angular.y = accel(4);
-    accel_msg.accel.angular.z = accel(5);
+  try {
+    // Transform linear acceleration (vector) from root_frame to planning_frame
+    Eigen::Vector3d linear_acc_vec(accel_root(0), accel_root(1), accel_root(2));
+    Eigen::Vector3d angular_acc_vec(accel_root(3), accel_root(4), accel_root(5));
+    
+    geometry_msgs::msg::Vector3Stamped root_linear_acc_stamped, planning_linear_acc_stamped;
+    geometry_msgs::msg::Vector3Stamped root_angular_acc_stamped, planning_angular_acc_stamped;
+    
+    root_linear_acc_stamped.vector.x = linear_acc_vec.x(); 
+    root_linear_acc_stamped.vector.y = linear_acc_vec.y(); 
+    root_linear_acc_stamped.vector.z = linear_acc_vec.z();
+    root_angular_acc_stamped.vector.x = angular_acc_vec.x(); 
+    root_angular_acc_stamped.vector.y = angular_acc_vec.y(); 
+    root_angular_acc_stamped.vector.z = angular_acc_vec.z();
+    
+    // Set frame_id and timestamp for transform
+    root_linear_acc_stamped.header.stamp = now();
+    root_linear_acc_stamped.header.frame_id = root_frame;
+    root_angular_acc_stamped.header.stamp = now();
+    root_angular_acc_stamped.header.frame_id = root_frame;
+    
+    tf_buffer_->transform(root_linear_acc_stamped, planning_linear_acc_stamped, planning_frame);
+    tf_buffer_->transform(root_angular_acc_stamped, planning_angular_acc_stamped, planning_frame);
+    
+    accel_msg.header.stamp = now();
+    accel_msg.header.frame_id = planning_frame;
+    accel_msg.accel.linear.x = planning_linear_acc_stamped.vector.x;
+    accel_msg.accel.linear.y = planning_linear_acc_stamped.vector.y;
+    accel_msg.accel.linear.z = planning_linear_acc_stamped.vector.z;
+    accel_msg.accel.angular.x = planning_angular_acc_stamped.vector.x;
+    accel_msg.accel.angular.y = planning_angular_acc_stamped.vector.y;
+    accel_msg.accel.angular.z = planning_angular_acc_stamped.vector.z;
+  } catch (const tf2::TransformException &ex) {
+    RCLCPP_WARN(get_logger(), "Could not transform accel to %s: %s", 
+                planning_frame.c_str(), ex.what());
+    return;
   }
 
   pose_pub_->publish(pose_msg);
@@ -98,4 +197,24 @@ void UrRobotManager::publishState() {
   accel_pub_->publish(accel_msg);
 }
 
-}; // namespace ur_robot_manager
+int main(int argc, char** argv)
+{
+    rclcpp::init(argc, argv);
+
+    auto node = std::make_shared<EeStatePublisher>();
+    node->initMoveGroup();
+
+    rclcpp::executors::MultiThreadedExecutor executor;
+    executor.add_node(node);
+
+    std::thread spin_thread([&executor]() {
+        executor.spin();
+    });
+
+    node->setupPublisher();
+
+    spin_thread.join();
+
+    rclcpp::shutdown();
+    return 0;
+}
