@@ -1,39 +1,43 @@
 /**:
   ros__parameters:
+    butterworth_filter_coeff: 2.0
     moveit_servo:
-      use_gazebo: false
-      command_in_type: "speed_units"
-      system_latency_compensation: 0.04
+      # General
       publish_period: 0.004
-      low_latency_mode: false
-
-      command_out_type: trajectory_msgs/JointTrajectory
-      publish_joint_positions: true
-      publish_joint_velocities: false
-      publish_joint_accelerations: false
-      smoothing_filter_plugin_name: "online_signal_smoothing::ButterworthFilterPlugin"
-      is_primary_planning_scene_monitor: false
-      low_pass_filter_coeff: 10.0
-
+      # Moveit Config
       move_group_name: $(var tf_prefix)manipulator
       planning_frame: $(var tf_prefix)base_link
       ee_frame: $(var tf_prefix)tool0
       robot_link_command_frame: $(var tf_prefix)tool0
-
-      incoming_command_timeout: 0.1
-      num_outgoing_halt_msgs_to_publish: 4
-
-      lower_singularity_threshold: 100.0
-      hard_stop_singularity_threshold: 200.0
-
-      joint_limit_margins: [0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
-
+      is_primary_planning_scene_monitor: false
+      # Command in
+      command_in_type: "speed_units"
       cartesian_command_in_topic: ~/delta_twist_cmds
       joint_command_in_topic: ~/delta_joint_cmds
       joint_topic: joint_states
+      incoming_command_timeout: 0.1
+      pose_tracking:
+        linear_tolerance: 0.001
+        angular_tolerance: 0.01
+      scale:
+        linear: 10.0 
+        rotational: 10.0
+        joint: 10.0
+      # Command out
+      publish_joint_positions: true
+      publish_joint_velocities: false
+      publish_joint_accelerations: false
+      command_out_topic: forward_position_controller/commands
+      command_out_type: std_msgs/Float64MultiArray
       status_topic: ~/status
-      command_out_topic: joint_trajectory_controller/joint_trajectory
-
+      joint_limit_margins: [0.01]
+      num_outgoing_halt_msgs_to_publish: 4
+      # Smoothing
+      use_smoothing: true
+      smoothing_filter_plugin_name: "online_signal_smoothing::ButterworthFilterPlugin"
+      # Singularity and Collision
+      lower_singularity_threshold: 100.0
+      hard_stop_singularity_threshold: 200.0
       check_collisions: true
       collision_check_rate: 5.0
       collision_check_type: threshold_distance

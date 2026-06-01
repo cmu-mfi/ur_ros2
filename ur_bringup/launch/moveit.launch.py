@@ -170,11 +170,7 @@ def launch_setup(context):
                 robot_description_semantic,
                 kinematics,
                 joint_limits,
-                planning_pipeline,
-                cartesian_limits,
-                trajectory_execution,
                 servo_parameters,
-                planning_scene_parameters,
                 ],
             output="screen",
             arguments=[
