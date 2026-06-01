@@ -10,6 +10,10 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <cmath>
 
+#include <geometry_msgs/msg/accel_stamped.hpp>
+#include <geometry_msgs/msg/pose_stamped.hpp>
+#include <geometry_msgs/msg/twist_stamped.hpp>
+
 #include "robot_manager_interfaces/action/joint_goal.hpp"
 #include "robot_manager_interfaces/action/pose_goal.hpp"
 #include "robot_manager_interfaces/srv/home.hpp"
@@ -51,7 +55,7 @@ namespace ur_robot_manager
       bool is_frame_tool0_child(const std::string& target_frame);
 
       // EE State Publisher methods
-      void setupEeStatePublisher();
+      void publishState();
 
       // Variables
       std::string ns_;

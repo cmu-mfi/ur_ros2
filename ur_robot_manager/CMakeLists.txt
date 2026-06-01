@@ -32,6 +32,7 @@ add_executable(
   src/joint_goal.cpp
   src/pose_goal.cpp
   src/home.cpp
+  src/ee_state_publisher.cpp
 )
 
 # Add include directories for the executable
