@@ -1,6 +1,8 @@
 #ifndef EE_STATE_PUBLISHER__UR_ROBOT_MANAGER_HPP_
 #define EE_STATE_PUBLISHER__UR_ROBOT_MANAGER_HPP_
 
+#include "geometry_msgs/msg/pose_stamped.hpp"
+#include "geometry_msgs/msg/twist_stamped.hpp"
 #include <memory>
 #include <moveit/move_group_interface/move_group_interface.hpp>
 #include <moveit/planning_scene_interface/planning_scene_interface.hpp>
@@ -18,8 +20,7 @@
 class EeStatePublisher : public rclcpp::Node {
 public:
     EeStatePublisher();
-    void initMoveGroup();
-    // void setupPublisher();
+    void setup();
     void publishState();
 
 private:
@@ -30,6 +31,8 @@ private:
     std::unique_ptr<moveit::planning_interface::MoveGroupInterface> move_group_;
     std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
     std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+    geometry_msgs::msg::PoseStamped last_pose_;
+    geometry_msgs::msg::TwistStamped last_twist_;
 
     // EE State Publisher related members
     std::string ee_link_;
