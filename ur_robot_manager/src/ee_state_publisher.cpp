@@ -1,4 +1,8 @@
 #include "ur_robot_manager/ee_state_publisher.hpp"
+#include <rclcpp/executor.hpp>
+#include <rclcpp/executors.hpp>
+#include <rclcpp/executors/multi_threaded_executor.hpp>
+#include <rclcpp/utilities.hpp>
 #include <tf2_eigen/tf2_eigen.hpp>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <geometry_msgs/msg/vector3_stamped.hpp>
@@ -6,8 +10,8 @@
 EeStatePublisher::EeStatePublisher() : Node("ee_state_publisher", rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true)) {
   ns_ = this->get_parameter("ns").as_string();
   tf_prefix_ = this->get_parameter("tf_prefix").as_string();
-  planning_group_ = tf_prefix_ + "manipulator"; 
-  RCLCPP_INFO(this->get_logger(), "Initilizing EE State Publisher with namespace: /%s and planning group: %s", ns_.c_str(), planning_group_.c_str());
+  planning_group_ = tf_prefix_ + "manipulator";
+  RCLCPP_INFO(this->get_logger(), "1. Initializing EE State Publisher with namespace: /%s and planning group: %s", ns_.c_str(), planning_group_.c_str());
 
   // TF setup
   tf_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock()); 
@@ -16,16 +20,14 @@ EeStatePublisher::EeStatePublisher() : Node("ee_state_publisher", rclcpp::NodeOp
   pose_pub_ = create_publisher<geometry_msgs::msg::PoseStamped>("ee_pose", 10);
   twist_pub_ = create_publisher<geometry_msgs::msg::TwistStamped>("ee_twist", 10);
   accel_pub_ = create_publisher<geometry_msgs::msg::AccelStamped>("ee_accel", 10);
-
 }
 
 void EeStatePublisher::initMoveGroup() {
-  moveit::planning_interface::MoveGroupInterface::Options options(planning_group_, "robot_description", "/"+ns_);
-  move_group_ = std::make_unique<moveit::planning_interface::MoveGroupInterface>(shared_from_this(), options);
-}
 
-void EeStatePublisher::setupPublisher() {
-    
+  RCLCPP_INFO(this->get_logger(), "2. Initializing EE State Publisher with namespace: /%s and planning group: %s", ns_.c_str(), planning_group_.c_str());
+  
+  moveit::planning_interface::MoveGroupInterface::Options options(planning_group_, "robot_description", "/"+ns_);
+  move_group_ = std::make_unique<moveit::planning_interface::MoveGroupInterface>(shared_from_this(), options);  
   joint_model_group_ = move_group_->getRobotModel()->getJointModelGroup(planning_group_);
   ee_link_ = move_group_->getEndEffectorLink();
 
@@ -36,15 +38,11 @@ void EeStatePublisher::setupPublisher() {
                 ee_link_.c_str());
   }
 
-  timer_ = create_wall_timer(std::chrono::milliseconds(100),
-                            std::bind(&EeStatePublisher::publishState, this));
-
   RCLCPP_INFO(get_logger(), "Publishing EE state for link: %s", ee_link_.c_str());    
 
 }
 
 void EeStatePublisher::publishState() {
-  
   auto state = move_group_->getCurrentState();
 
   if (!state) {
@@ -195,6 +193,8 @@ void EeStatePublisher::publishState() {
   pose_pub_->publish(pose_msg);
   twist_pub_->publish(twist_msg);
   accel_pub_->publish(accel_msg);
+
+  RCLCPP_INFO(get_logger(), "Data published on ee states topics");
 }
 
 int main(int argc, char** argv)
@@ -203,18 +203,22 @@ int main(int argc, char** argv)
 
     auto node = std::make_shared<EeStatePublisher>();
     node->initMoveGroup();
+    // node->setupPublisher();    
 
-    rclcpp::executors::MultiThreadedExecutor executor;
+    rclcpp::WallRate loop_rate(50);
+    rclcpp::executors::MultiThreadedExecutor  executor;
     executor.add_node(node);
+    std::thread([&executor]() { executor.spin(); }).detach();
 
-    std::thread spin_thread([&executor]() {
-        executor.spin();
-    });
+    node->publishState();
 
-    node->setupPublisher();
+    RCLCPP_INFO(node->get_logger(), "Starting publishing on states topics");
+    while (rclcpp::ok()) {
+      node->publishState();
+      loop_rate.sleep();     
+    }
 
-    spin_thread.join();
-
+    RCLCPP_INFO(node->get_logger(), "End publishing on states topics");
     rclcpp::shutdown();
     return 0;
 }

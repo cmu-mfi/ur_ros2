@@ -19,12 +19,10 @@ class EeStatePublisher : public rclcpp::Node {
 public:
     EeStatePublisher();
     void initMoveGroup();
-    void setupPublisher();
-
-private:
-    // EE State Publisher methods
+    // void setupPublisher();
     void publishState();
 
+private:
     // Variables
     std::string ns_;
     std::string tf_prefix_;
