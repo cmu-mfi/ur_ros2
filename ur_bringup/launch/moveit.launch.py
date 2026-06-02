@@ -93,7 +93,13 @@ def launch_setup(context):
             f"{tf_prefix}{joint_name}": limits 
             for joint_name, limits in raw_limits.items()
             }
-    joint_limits = {'robot_description_planning': {"joint_limits": prefixed_limits}}
+    joint_limits = {'robot_description_planning': 
+                    {
+                        "default_velocity_scaling_factor": 1.0,
+                        "default_acceleration_scaling_factor": 1.0,
+                        "joint_limits": prefixed_limits,
+                        }
+                    }
 
     # Planning Pipeline
     pilz_config_path = os.path.join(get_package_share_directory(pkg_prefix+"bringup"), 'config', 'pilz_industrial_motion_planner_planning.yaml')

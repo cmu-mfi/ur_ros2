@@ -3,7 +3,7 @@
     butterworth_filter_coeff: 2.0
     moveit_servo:
       # General
-      publish_period: 0.004
+      publish_period: 0.002
       # Moveit Config
       move_group_name: $(var tf_prefix)manipulator
       planning_frame: $(var tf_prefix)base_link
@@ -20,9 +20,9 @@
         linear_tolerance: 0.001
         angular_tolerance: 0.01
       scale:
-        linear: 10.0 
-        rotational: 10.0
-        joint: 10.0
+        linear: 100.0 
+        rotational: 100.0
+        joint: 100.0
       # Command out
       publish_joint_positions: true
       publish_joint_velocities: false
@@ -36,12 +36,10 @@
       use_smoothing: true
       smoothing_filter_plugin_name: "online_signal_smoothing::ButterworthFilterPlugin"
       # Singularity and Collision
-      lower_singularity_threshold: 100.0
-      hard_stop_singularity_threshold: 200.0
+      lower_singularity_threshold: 10.0
+      hard_stop_singularity_threshold: 30.0
+      leaving_singularity_threshold_multiplier: 2.0
       check_collisions: true
-      collision_check_rate: 5.0
-      collision_check_type: threshold_distance
+      collision_check_rate: 10.0
       self_collision_proximity_threshold: 0.01
       scene_collision_proximity_threshold: 0.02
-      collision_distance_safety_factor: 1000.0
-      min_allowable_collision_distance: 0.01
