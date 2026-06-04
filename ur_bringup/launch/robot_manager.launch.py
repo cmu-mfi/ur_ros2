@@ -122,8 +122,32 @@ def launch_setup(context):
             log_level
         ]
     )
-
-    return [ur_robot_manager]
+    
+    # EE State Publisher
+    ee_state_publisher = Node(
+        package='ur_robot_manager',
+        executable='ee_state_publisher',
+        namespace=ns,
+        output='screen',
+        parameters=[
+            robot_description,
+            robot_description_semantic,
+            kinematics,
+            joint_limits,
+            planning_scene_parameters,
+            {
+                'ns': ns,
+                'tf_prefix': tf_prefix,
+            },
+        ],
+        arguments=[
+            '--ros-args', 
+            '--log-level', 
+            log_level
+        ]
+    )
+    
+    return [ur_robot_manager, ee_state_publisher]
 
 def generate_launch_description():
     declared_arguments = []

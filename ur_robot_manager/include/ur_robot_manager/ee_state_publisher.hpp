@@ -29,8 +29,6 @@ private:
     std::string tf_prefix_;
     std::string planning_group_;
     std::unique_ptr<moveit::planning_interface::MoveGroupInterface> move_group_;
-    std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
-    std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
     geometry_msgs::msg::PoseStamped last_pose_;
     geometry_msgs::msg::TwistStamped last_twist_;
 

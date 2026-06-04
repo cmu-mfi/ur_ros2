@@ -5,8 +5,6 @@
 #include <rclcpp/executors/multi_threaded_executor.hpp>
 #include <rclcpp/utilities.hpp>
 #include <string>
-#include <tf2_eigen/tf2_eigen.hpp>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include <geometry_msgs/msg/vector3_stamped.hpp>
 
 EeStatePublisher::EeStatePublisher() : Node("ee_state_publisher", rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true)) {
@@ -14,10 +12,6 @@ EeStatePublisher::EeStatePublisher() : Node("ee_state_publisher", rclcpp::NodeOp
   tf_prefix_ = this->get_parameter("tf_prefix").as_string();
   planning_group_ = tf_prefix_ + "manipulator";
   RCLCPP_INFO(this->get_logger(), "Initializing EE State Publisher with namespace: /%s and planning group: %s", ns_.c_str(), planning_group_.c_str());
-
-  // TF setup
-  tf_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock()); 
-  tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
   pose_pub_ = create_publisher<geometry_msgs::msg::PoseStamped>("ee_pose", 10);
   twist_pub_ = create_publisher<geometry_msgs::msg::TwistStamped>("ee_twist", 10);
@@ -48,48 +42,6 @@ void EeStatePublisher::setup() {
 }
 
 void EeStatePublisher::publishState() {
-  /*
-  auto state = move_group_->getCurrentState();
-
-  if (!state) {
-    RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
-                         "Failed to get robot state");
-    return;
-  }
-
-  const std::string &planning_frame = tf_prefix_ + "base";
-  const std::string &root_frame = move_group_->getRobotModel()->getModelFrame();
-  
-  //----------------------------------------------------
-  // Pose - transform from root_frame to planning_frame (base_link)
-  //--------------------------------------------------
-
-  // Get transform from root frame to ee_link
-  const Eigen::Isometry3d &root_T_ee = state->getGlobalLinkTransform(ee_link_);
-
-  // Create pose message in root frame first
-  geometry_msgs::msg::PoseStamped root_pose_msg;
-  root_pose_msg.header.stamp = now();
-  root_pose_msg.header.frame_id = root_frame;
-  root_pose_msg.pose.position.x = root_T_ee.translation().x();
-  root_pose_msg.pose.position.y = root_T_ee.translation().y();
-  root_pose_msg.pose.position.z = root_T_ee.translation().z();
-  Eigen::Quaterniond q(root_T_ee.rotation());
-  root_pose_msg.pose.orientation.x = q.x();
-  root_pose_msg.pose.orientation.y = q.y();
-  root_pose_msg.pose.orientation.z = q.z();
-  root_pose_msg.pose.orientation.w = q.w();
-
-  // Transform pose to planning_frame
-  geometry_msgs::msg::PoseStamped pose_msg;
-  try {
-    tf_buffer_->transform(root_pose_msg, pose_msg, planning_frame);
-  } catch (const tf2::TransformException &ex) {
-    RCLCPP_WARN(get_logger(), "Could not transform pose to %s: %s", 
-                planning_frame.c_str(), ex.what());
-    return;
-  }
-  */
   //----------------------------------------------------
   // Pose - transform from root_frame to planning_frame (base_link)
   //--------------------------------------------------
@@ -190,9 +142,8 @@ int main(int argc, char** argv)
 
     auto node = std::make_shared<EeStatePublisher>();
     node->setup();
-    // node->setupPublisher();    
 
-    rclcpp::WallRate loop_rate(50);
+    rclcpp::WallRate loop_rate(200);
     rclcpp::executors::MultiThreadedExecutor  executor;
     executor.add_node(node);
     std::thread([&executor]() { executor.spin(); }).detach();
