@@ -100,30 +100,6 @@ def launch_setup(context):
             }
 
     # Robot Manager
-    ur_robot_manager = Node(
-        package='ur_robot_manager',
-        executable='ur_robot_manager',
-        namespace=ns,
-        output='screen',
-        parameters=[
-            robot_description,
-            robot_description_semantic,
-            kinematics,
-            joint_limits,
-            planning_scene_parameters,
-            {
-                'ns': ns,
-                'tf_prefix': tf_prefix,
-            },
-        ],
-        arguments=[
-            '--ros-args', 
-            '--log-level', 
-            log_level
-        ]
-    )
-    
-    # EE State Publisher
     ee_state_publisher = Node(
         package='ur_robot_manager',
         executable='ee_state_publisher',
@@ -146,8 +122,8 @@ def launch_setup(context):
             log_level
         ]
     )
-    
-    return [ur_robot_manager, ee_state_publisher]
+
+    return [ee_state_publisher]
 
 def generate_launch_description():
     declared_arguments = []
@@ -193,20 +169,9 @@ def generate_launch_description():
                 )
             )
     declared_arguments.append(
-            DeclareLaunchArgument(
-                "use_mock_hardware",
-                default_value="false",
-                description="Start robot with mock hardware mirroring command to its states.",
-                )
-            )
-    declared_arguments.append(
             SetLaunchConfiguration('kinematics_params_file', 
                                    PythonExpression(["'", 
                                                      PathJoinSubstitution([FindPackageShare("ur_description"), "config", LaunchConfiguration("model"), "default_kinematics.yaml"]), 
-                                                     "' if '", 
-                                                     LaunchConfiguration('use_mock_hardware'), 
-                                                     "' == 'true' else '",
-                                                     PathJoinSubstitution([FindPackageShare("ur_bringup"), "config", "calibration.yaml"]),
                                                      "'"
                                                      ])))
     return LaunchDescription(declared_arguments + [OpaqueFunction(function=launch_setup)])

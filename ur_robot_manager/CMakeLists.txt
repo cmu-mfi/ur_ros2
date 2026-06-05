@@ -44,12 +44,21 @@ target_include_directories(ur_robot_manager PUBLIC
   $<INSTALL_INTERFACE:include>
 )
 
+target_include_directories(ee_state_publisher PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+
 # Link the libraries
 ament_target_dependencies(ur_robot_manager ${DEPENDENCIES})
+ament_target_dependencies(ee_state_publisher ${DEPENDENCIES})
 ament_export_include_directories(include)
 ament_export_dependencies(${DEPENDENCIES})
 
 install(TARGETS ur_robot_manager
+  DESTINATION lib/${PROJECT_NAME}
+)
+install(TARGETS ee_state_publisher
   DESTINATION lib/${PROJECT_NAME}
 )
 

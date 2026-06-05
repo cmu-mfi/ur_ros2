@@ -1,6 +1,6 @@
 import rclpy
 from rclpy.node import Node
-from ur_msgs.srv import SetPayload
+from robot_manager_interfaces.srv import SetPayload
 
 class PayloadClient(Node):
     def __init__(self):
@@ -10,17 +10,16 @@ class PayloadClient(Node):
         self.topic = ""
         if self.ns != "":
             self.topic = "/" + str(self.ns)
-        self.payload_client = self.create_client(SetPayload, self.topic + '/io_and_status_controller/set_payload')
+        self.payload_client = self.create_client(SetPayload, self.topic + '/set_payload')
         while not self.payload_client.wait_for_service(timeout_sec=1.0):
             self.get_logger().info('Service not available, waiting again...')
-        
         self.req = SetPayload.Request()
 
     def send_request(self, mass, x, y, z):
         self.req.mass = mass
-        self.req.center_of_gravity.x = x
-        self.req.center_of_gravity.y = y
-        self.req.center_of_gravity.z = z
+        self.req.cog.x = x
+        self.req.cog.y = y
+        self.req.cog.z = z
         
         self.get_logger().info(f'Sending request: Mass={mass}kg, CoG=[{x}, {y}, {z}]')
         
@@ -33,8 +32,7 @@ def main():
     
     node = PayloadClient()
     
-    # Example: 5.5kg mass, CoG offset 12cm along Z-axis
-    response = node.send_request(5.5, 0.0, 0.0, 0.12)
+    response = node.send_request(1.46, -0.015, 0.014, 0.016)
     
     if response.success:
         node.get_logger().info('Successfully updated payload!')
