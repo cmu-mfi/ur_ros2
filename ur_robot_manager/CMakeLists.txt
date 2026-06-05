@@ -17,6 +17,7 @@ set(DEPENDENCIES
   tf2_ros
   robot_manager_interfaces
   std_srvs
+  ur_msgs
 )
 
 
@@ -32,6 +33,7 @@ add_executable(
   src/joint_goal.cpp
   src/pose_goal.cpp
   src/home.cpp
+  src/set_payload.cpp
 )
 
 add_executable(
