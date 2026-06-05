@@ -22,7 +22,7 @@ namespace ur_robot_manager
     RCLCPP_INFO(this->get_logger(), "[Set Payload Service] Attempting to set payload - Mass: %.2f kg, COG: [%.3f, %.3f, %.3f]", 
                 mass, cog_x, cog_y, cog_z);
 
-    auto ur_request = std::make_shared<ur_msgs::srv::SetPayload::Request>();
+    auto ur_request = std::make_shared<UrSetPayload::Request>();
     ur_request->mass = mass;
     ur_request->set__center_of_gravity(request->cog);
 
