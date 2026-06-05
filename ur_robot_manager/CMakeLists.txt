@@ -38,6 +38,11 @@ add_executable(
   src/wrench_publisher.cpp
 )
 
+add_executable(
+  ee_state_publisher
+  src/ee_state_publisher.cpp 
+)
+
 # Add include directories for the executable
 target_include_directories(ur_robot_manager PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
