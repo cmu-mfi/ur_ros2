@@ -17,6 +17,7 @@ set(DEPENDENCIES
   tf2_ros
   robot_manager_interfaces
   std_srvs
+  geometry_msgs
   ur_msgs
 )
 
@@ -34,11 +35,7 @@ add_executable(
   src/pose_goal.cpp
   src/home.cpp
   src/set_payload.cpp
-)
-
-add_executable(
-  ee_state_publisher
-  src/ee_state_publisher.cpp 
+  src/wrench_publisher.cpp
 )
 
 # Add include directories for the executable

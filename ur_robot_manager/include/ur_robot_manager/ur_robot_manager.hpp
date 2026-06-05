@@ -14,6 +14,7 @@
 #include "robot_manager_interfaces/srv/home.hpp"
 #include "robot_manager_interfaces/srv/set_payload.hpp"
 #include "ur_msgs/srv/set_payload.hpp"
+#include "geometry_msgs/msg/wrench_stamped.hpp"
 
 namespace ur_robot_manager
 {
@@ -25,6 +26,8 @@ namespace ur_robot_manager
       using PoseGoalHandle = rclcpp_action::ServerGoalHandle<PoseGoal>;
       using Home = robot_manager_interfaces::srv::Home;
       using SetPayload = robot_manager_interfaces::srv::SetPayload;
+      using UrSetPayload = ur_msgs::srv::SetPayload;
+      using WrenchStamped = geometry_msgs::msg::WrenchStamped;
 
       UrRobotManager();
       void setup();
@@ -54,7 +57,12 @@ namespace ur_robot_manager
       // Set Payload Service
       rclcpp::Service<SetPayload>::SharedPtr set_payload_service_;
       void set_payload_service_callback(const std::shared_ptr<SetPayload::Request> request, std::shared_ptr<SetPayload::Response> response);
-      rclcpp::Client<ur_msgs::srv::SetPayload>::SharedPtr ur_set_payload_client_;
+      rclcpp::Client<UrSetPayload>::SharedPtr ur_set_payload_client_;
+
+      // Publish ft
+      rclcpp::Subscription<WrenchStamped>::SharedPtr ur_wrench_subscriber_;
+      rclcpp::Publisher<WrenchStamped>::SharedPtr wrench_publisher_;
+      void ur_wrench_subscription_callback_(const WrenchStamped::SharedPtr msg);
 
       // Parameters
       std::string ns_;

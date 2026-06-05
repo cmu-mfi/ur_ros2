@@ -43,8 +43,8 @@
         type: control_filters/LowPassFilterWrench 
         params:
           sampling_frequency: 500.0 
-          damping_frequency: 2.0 
-          damping_intensity: 0.0
+          damping_frequency: 5.0 
+          damping_intensity: 0.2
 
 /**/joint_trajectory_controller:
   ros__parameters:
