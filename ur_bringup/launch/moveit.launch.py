@@ -263,6 +263,13 @@ def generate_launch_description():
             DeclareLaunchArgument("launch_servo", default_value="true", description="Launch Moveit Servo?"),
             )
     declared_arguments.append(
+            DeclareLaunchArgument(
+                "use_mock_hardware",
+                default_value="false",
+                description="Start robot with mock hardware mirroring command to its states.",
+                )
+            )
+    declared_arguments.append(
             SetLaunchConfiguration('kinematics_params_file', 
                                    PythonExpression(["'", 
                                                      PathJoinSubstitution([FindPackageShare("ur_description"), "config", LaunchConfiguration("model"), "default_kinematics.yaml"]), 

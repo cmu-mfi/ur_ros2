@@ -77,8 +77,11 @@ def launch_setup(context):
         executable='robot_state_publisher',
         name='robot_state_publisher',
         namespace=ns,
-        parameters=[robot_description],
         arguments=["--ros-args", "--log-level", log_level],
+        parameters=[
+            robot_description,
+            {'publish_frequency': 500.0}
+            ]
         ))
 
     nodes.append(Node(

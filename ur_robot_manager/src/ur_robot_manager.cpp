@@ -45,10 +45,29 @@ namespace ur_robot_manager
     service_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
     home_service_ = this->create_service<Home>(
         "home",
-        std::bind(&UrRobotManager::handle_home_service, this, std::placeholders::_1, std::placeholders::_2),
+        std::bind(&UrRobotManager::home_service_callback, this, std::placeholders::_1, std::placeholders::_2),
         rclcpp::QoS(rclcpp::KeepLast(10)).reliable().durability_volatile(),
         service_cb_group_
         );
+    // Set Payload Service
+    set_payload_service_ = this->create_service<SetPayload>(
+        "set_payload",
+        std::bind(&UrRobotManager::set_payload_service_callback, this, std::placeholders::_1, std::placeholders::_2),
+        rclcpp::QoS(rclcpp::KeepLast(10)).reliable().durability_volatile(),
+        service_cb_group_
+        );
+    ur_set_payload_client_ = this->create_client<UrSetPayload>("io_and_status_controller/set_payload");
+    while (!ur_set_payload_client_->wait_for_service(std::chrono::seconds(1))) {
+      RCLCPP_INFO(this->get_logger(), "Waiting for service: io_and_status_controller/set_payload");
+    }
+
+    // --- FT Publisher ---
+    ur_wrench_subscriber_ = this->create_subscription<WrenchStamped>(
+        "force_torque_sensor_broadcaster/wrench", 
+        rclcpp::QoS(10), 
+        std::bind(&UrRobotManager::ur_wrench_subscription_callback_, this, std::placeholders::_1)
+        );
+    wrench_publisher_ = this->create_publisher<WrenchStamped>("wrench", rclcpp::QoS(10));
 
     RCLCPP_INFO(this->get_logger(), "Robot Manager is ready!");
   }
