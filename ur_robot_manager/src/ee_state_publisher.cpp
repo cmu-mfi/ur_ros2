@@ -7,9 +7,14 @@
 #include <string>
 #include <geometry_msgs/msg/vector3_stamped.hpp>
 
-EeStatePublisher::EeStatePublisher() : Node("ee_state_publisher", rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true)) {
+EeStatePublisher::EeStatePublisher() 
+	: Node("ee_state_publisher", rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true)),
+	  tf_buffer_(this->get_clock()),
+	  tf_listener_(tf_buffer_)
+{
   ns_ = this->get_parameter("ns").as_string();
   tf_prefix_ = this->get_parameter("tf_prefix").as_string();
+  base_frame_ = tf_prefix_ + "base";
   planning_group_ = tf_prefix_ + "manipulator";
   RCLCPP_INFO(this->get_logger(), "Initializing EE State Publisher with namespace: /%s and planning group: %s", ns_.c_str(), planning_group_.c_str());
 
@@ -33,9 +38,7 @@ void EeStatePublisher::setup() {
   }
 
   move_group_->startStateMonitor();
-  move_group_->setPoseReferenceFrame(tf_prefix_+"base");
-
-  last_pose_ = move_group_->getCurrentPose(tf_prefix_+"tool0");
+  last_pose_ = getPoseInBaseFrame(move_group_->getCurrentPose(tf_prefix_+"tool0"));
 
   RCLCPP_INFO(get_logger(), "Publishing EE state for link: %s", ee_link_.c_str());    
 
@@ -46,7 +49,7 @@ void EeStatePublisher::publishState() {
   // Pose - transform from root_frame to planning_frame (base_link)
   //--------------------------------------------------
 
-  geometry_msgs::msg::PoseStamped pose_msg = move_group_->getCurrentPose(tf_prefix_+"tool0");
+  geometry_msgs::msg::PoseStamped pose_msg = getPoseInBaseFrame(move_group_->getCurrentPose(tf_prefix_+"tool0"));
   auto time_step = pose_msg.header.stamp.nanosec - last_pose_.header.stamp.nanosec;
   double dt = time_step / 1e9;
 
@@ -134,6 +137,27 @@ void EeStatePublisher::publishState() {
   last_twist_ = twist_msg;
 
   // RCLCPP_INFO(get_logger(), "Data published on ee states topics");
+}
+
+geometry_msgs::msg::PoseStamped  EeStatePublisher::getPoseInBaseFrame(geometry_msgs::msg::PoseStamped tool_pose){
+
+    //Transform to base frame
+    geometry_msgs::msg::PoseStamped pose_in_base;
+
+    try
+    {
+      pose_in_base = tf_buffer_.transform(
+          tool_pose,
+          base_frame_,
+          tf2::durationFromSec(0.5));
+    }
+    catch (const tf2::TransformException &ex)
+    {
+      RCLCPP_ERROR(get_logger(), "TF failed: %s", ex.what());
+      throw;
+    }
+
+    return pose_in_base;
 }
 
 int main(int argc, char** argv)

@@ -24,11 +24,16 @@ public:
     void publishState();
 
 private:
+    geometry_msgs::msg::PoseStamped getPoseInBaseFrame(geometry_msgs::msg::PoseStamped tool_pose);
+
     // Variables
     std::string ns_;
     std::string tf_prefix_;
+    std::string base_frame_;
     std::string planning_group_;
     std::unique_ptr<moveit::planning_interface::MoveGroupInterface> move_group_;
+    tf2_ros::Buffer tf_buffer_;
+    tf2_ros::TransformListener tf_listener_;   
     geometry_msgs::msg::PoseStamped last_pose_;
     geometry_msgs::msg::TwistStamped last_twist_;
 
