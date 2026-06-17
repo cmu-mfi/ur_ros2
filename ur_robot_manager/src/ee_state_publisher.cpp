@@ -35,10 +35,24 @@ void EeStatePublisher::setup() {
   move_group_->startStateMonitor();
   move_group_->setPoseReferenceFrame(tf_prefix_+"base");
 
-  last_pose_ = move_group_->getCurrentPose(tf_prefix_+"tool0");
+  // Wait until we can successfully fetch the current pose
+  RCLCPP_INFO(get_logger(), "Waiting for current robot state...");
+  while (rclcpp::ok()) {
+      try {
+          // This will log an error internally if it fails, but we catch/retry
+          last_pose_ = move_group_->getCurrentPose(tf_prefix_+"tool0");
+          
+          // Check if we got valid data (if orientation w is 0, it's usually an uninitialized empty pose)
+          if (last_pose_.pose.orientation.w != 0.0) {
+              break; 
+          }
+      } catch (...) {
+          // Ignore exceptions and keep trying
+      }
+      rclcpp::sleep_for(std::chrono::milliseconds(100));
+  }
 
   RCLCPP_INFO(get_logger(), "Publishing EE state for link: %s", ee_link_.c_str());    
-
 }
 
 void EeStatePublisher::publishState() {
@@ -47,8 +61,15 @@ void EeStatePublisher::publishState() {
   //--------------------------------------------------
 
   geometry_msgs::msg::PoseStamped pose_msg = move_group_->getCurrentPose(tf_prefix_+"tool0");
-  auto time_step = pose_msg.header.stamp.nanosec - last_pose_.header.stamp.nanosec;
-  double dt = time_step / 1e9;
+  // THE FIX:
+  rclcpp::Time t_curr(pose_msg.header.stamp);
+  rclcpp::Time t_last(last_pose_.header.stamp);
+  double dt = (t_curr - t_last).seconds();
+
+  if (dt <= 0.0) {
+    // Avoid division by zero if messages arrive with the exact same timestamp
+    return; 
+  }
 
   //----------------------------------------------------
   // Twist - transform from root_frame to planning_frame
@@ -132,25 +153,22 @@ void EeStatePublisher::publishState() {
 
   last_pose_ = pose_msg;
   last_twist_ = twist_msg;
-
-  // RCLCPP_INFO(get_logger(), "Data published on ee states topics");
 }
 
 int main(int argc, char** argv)
 {
     rclcpp::init(argc, argv);
-
     auto node = std::make_shared<EeStatePublisher>();
-    node->setup();
 
-    rclcpp::WallRate loop_rate(200);
-    rclcpp::executors::MultiThreadedExecutor  executor;
+    rclcpp::executors::MultiThreadedExecutor executor;
     executor.add_node(node);
     std::thread([&executor]() { executor.spin(); }).detach();
 
-    node->publishState();
+    node->setup();
 
+    rclcpp::WallRate loop_rate(200);
     RCLCPP_INFO(node->get_logger(), "Starting publishing on states topics");
+
     while (rclcpp::ok()) {
       node->publishState();
       loop_rate.sleep();     
