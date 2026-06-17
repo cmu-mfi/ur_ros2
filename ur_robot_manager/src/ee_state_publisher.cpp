@@ -50,8 +50,13 @@ void EeStatePublisher::publishState() {
   //--------------------------------------------------
 
   geometry_msgs::msg::PoseStamped pose_msg = getPoseInBaseFrame(move_group_->getCurrentPose(tf_prefix_+"tool0"));
-  auto time_step = pose_msg.header.stamp.nanosec - last_pose_.header.stamp.nanosec;
-  double dt = time_step / 1e9;
+  rclcpp::Time t_curr(pose_msg.header.stamp);
+  rclcpp::Time t_last(last_pose_.header.stamp);
+  double dt = (t_curr - t_last).seconds();
+  if (dt <= 0.0) {
+    // Avoid division by zero if messages arrive with the exact same timestamp
+    return; 
+  }
 
   //----------------------------------------------------
   // Twist - transform from root_frame to planning_frame
@@ -163,18 +168,17 @@ geometry_msgs::msg::PoseStamped  EeStatePublisher::getPoseInBaseFrame(geometry_m
 int main(int argc, char** argv)
 {
     rclcpp::init(argc, argv);
-
     auto node = std::make_shared<EeStatePublisher>();
-    node->setup();
 
-    rclcpp::WallRate loop_rate(200);
-    rclcpp::executors::MultiThreadedExecutor  executor;
+    rclcpp::executors::MultiThreadedExecutor executor;
     executor.add_node(node);
     std::thread([&executor]() { executor.spin(); }).detach();
 
-    node->publishState();
+    node->setup();
 
+    rclcpp::WallRate loop_rate(200);
     RCLCPP_INFO(node->get_logger(), "Starting publishing on states topics");
+
     while (rclcpp::ok()) {
       node->publishState();
       loop_rate.sleep();     
