@@ -63,7 +63,7 @@ namespace ur_robot_manager
 
     // --- FT Publisher ---
     ur_wrench_subscriber_ = this->create_subscription<WrenchStamped>(
-        "force_torque_sensor_broadcaster/wrench", 
+        "force_torque_sensor_broadcaster/wrench_filtered", 
         rclcpp::QoS(10), 
         std::bind(&UrRobotManager::ur_wrench_subscription_callback_, this, std::placeholders::_1)
         );
