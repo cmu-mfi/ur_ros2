@@ -16,6 +16,9 @@
 
     ur_configuration_controller:
       type: ur_controllers/URConfigurationController
+
+    admittance_controller:
+      type: admittance_controller/AdmittanceController
     
 /**/io_and_status_controller:
   ros__parameters:
@@ -35,7 +38,7 @@
       - torque.x
       - torque.y
       - torque.z
-    frame_id: $(var tf_prefix)tool0_controller
+    frame_id: $(var tf_prefix)tool0
     topic_name: ft_data
     sensor_filter_chain:
       filter1:
@@ -72,3 +75,55 @@
     #   $(var tf_prefix)wrist_1_joint: {trajectory: 0.2, goal: 0.1}
     #   $(var tf_prefix)wrist_2_joint: {trajectory: 0.2, goal: 0.1}
     #   $(var tf_prefix)wrist_3_joint: {trajectory: 0.2, goal: 0.1}
+
+/**/admittance_controller:
+  ros__parameters:
+    joints:
+      - $(var tf_prefix)shoulder_pan_joint
+      - $(var tf_prefix)shoulder_lift_joint
+      - $(var tf_prefix)elbow_joint
+      - $(var tf_prefix)wrist_1_joint
+      - $(var tf_prefix)wrist_2_joint
+      - $(var tf_prefix)wrist_3_joint
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+      - velocity
+    chainable_command_interfaces:
+      - position
+      - velocity
+    # --- 1. Kinematics Interface (New Plugin Structure) ---
+    kinematics:
+      plugin_name: kinematics_interface_kdl/KinematicsInterfaceKDL
+      plugin_package: kinematics_interface
+      base: "$(var tf_prefix)base_link"
+      tip: "$(var tf_prefix)tool0"
+      alpha: 0.005 # Jacobian pseudo-inverse damping coefficient
+    # --- 2. Force-Torque Sensor Properties ---
+    ft_sensor:
+      name: "$(var tf_prefix)tcp_fts_sensor"
+      frame:
+        id: "$(var tf_prefix)tool0" # Frame where F/T wrench measurements live
+      filter_coefficient: 0.05 # Exponential low-pass filter for sensor noise
+    # --- 3. Coordinate Frames ---
+    control:
+      frame:
+        id: "$(var tf_prefix)tool0" # Frame where admittance dynamics are computed
+    fixed_world_frame:
+      frame:
+        id: "$(var tf_prefix)base_link" # Gravity must point down (-Z) in this frame
+    # --- 4. Tool Mass & Gravity Compensation ---
+    gravity_compensation:
+      frame:
+        id: "$(var tf_prefix)tool0"
+      CoG:
+        pos: [0.0, 0.0, 0.0] # Center of Gravity of your gripper/tool (meters)
+        force: 0.0            # Mass of tool * 9.81 (Set to 0.0 if UR driver handles it)
+    # --- 5. Core Admittance Parameters (X, Y, Z, Roll, Pitch, Yaw) ---
+    admittance:
+      selected_axes: [True, True, True, False, False, False]
+      mass: [4.0, 4.0, 4.0, 4.0, 4.0, 4.0]
+      stiffness: [500.0, 500.0, 500.0, 500.0, 500.0, 500.0]
+      damping_ratio: [2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
+      joint_damping: 4.0 # Protective damping directly applied in joint space

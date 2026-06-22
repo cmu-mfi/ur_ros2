@@ -58,6 +58,9 @@ def launch_setup(context):
                 " ",
                 "use_mock_hardware:=",
                 use_mock_hardware,
+                " ",
+                "mock_sensor_commands:=",
+                "true",
                 ]
             )
     robot_description = {
@@ -132,28 +135,35 @@ def launch_setup(context):
         arguments=["--ros-args", "--log-level", log_level],
         ))
 
-    def controller_spawner(controllers):
+    def controller_spawner(controllers, active=True):
+        inactive_flags = ["--inactive"] if not active else []
         return Node(
-                package="controller_manager",
-                executable="spawner",
-                namespace=ns,
-                arguments=[
-                    "--controller-manager-timeout",
-                    "10",
-                    ]
-                + controllers
-                + ["--ros-args", "--log-level", log_level],
-                )
-
-    controllers = [
-            "joint_state_broadcaster",
-            "io_and_status_controller",
-            "force_torque_sensor_broadcaster",
-            "ur_configuration_controller",
-            "joint_trajectory_controller",
+            package="controller_manager",
+            executable="spawner",
+            namespace=ns,
+            arguments=[
+                "--controller-manager-timeout",
+                "10",
             ]
+            + inactive_flags
+            + controllers
+            + ["--ros-args", "--log-level", log_level],
+        )
 
-    nodes.append(controller_spawner(controllers))
+    controllers_active = [
+        "joint_state_broadcaster",
+        "io_and_status_controller",
+        "force_torque_sensor_broadcaster",
+        "ur_configuration_controller",
+        "admittance_controller",
+    ]
+    controllers_inactive = [
+        # "forward_position_controller",
+        # "joint_trajectory_controller",
+    ]
+
+    nodes.append(controller_spawner(controllers_active, True))
+    # nodes.append(controller_spawner(controllers_inactive, False))
 
     return nodes
 
