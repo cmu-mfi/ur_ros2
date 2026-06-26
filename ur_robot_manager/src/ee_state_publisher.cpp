@@ -38,10 +38,26 @@ void EeStatePublisher::setup() {
   }
 
   move_group_->startStateMonitor();
-  last_pose_ = getPoseInBaseFrame(move_group_->getCurrentPose(tf_prefix_+"tool0"));
+  move_group_->setPoseReferenceFrame(tf_prefix_+"base");
+
+  // Wait until we can successfully fetch the current pose
+  RCLCPP_INFO(get_logger(), "Waiting for current robot state...");
+  while (rclcpp::ok()) {
+      try {
+          // This will log an error internally if it fails, but we catch/retry
+          last_pose_ = move_group_->getCurrentPose(tf_prefix_+"tool0");
+          
+          // Check if we got valid data (if orientation w is 0, it's usually an uninitialized empty pose)
+          if (last_pose_.pose.orientation.w != 0.0) {
+              break; 
+          }
+      } catch (...) {
+          // Ignore exceptions and keep trying
+      }
+      rclcpp::sleep_for(std::chrono::milliseconds(100));
+  }
 
   RCLCPP_INFO(get_logger(), "Publishing EE state for link: %s", ee_link_.c_str());    
-
 }
 
 void EeStatePublisher::publishState() {
@@ -49,10 +65,12 @@ void EeStatePublisher::publishState() {
   // Pose - transform from root_frame to planning_frame (base_link)
   //--------------------------------------------------
 
-  geometry_msgs::msg::PoseStamped pose_msg = getPoseInBaseFrame(move_group_->getCurrentPose(tf_prefix_+"tool0"));
+  geometry_msgs::msg::PoseStamped pose_msg = move_group_->getCurrentPose(tf_prefix_+"tool0");
+  // THE FIX:
   rclcpp::Time t_curr(pose_msg.header.stamp);
   rclcpp::Time t_last(last_pose_.header.stamp);
   double dt = (t_curr - t_last).seconds();
+
   if (dt <= 0.0) {
     // Avoid division by zero if messages arrive with the exact same timestamp
     return; 
@@ -140,8 +158,6 @@ void EeStatePublisher::publishState() {
 
   last_pose_ = pose_msg;
   last_twist_ = twist_msg;
-
-  // RCLCPP_INFO(get_logger(), "Data published on ee states topics");
 }
 
 geometry_msgs::msg::PoseStamped  EeStatePublisher::getPoseInBaseFrame(geometry_msgs::msg::PoseStamped tool_pose){
