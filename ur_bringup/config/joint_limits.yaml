@@ -4,7 +4,7 @@ joint_limits:
     min_position: -6.283185
     max_position: 6.283185
     has_velocity_limits: true
-    max_velocity: 20.94395 # Multiplied by 10 because of moveit servo bug (default velocity scaling is 0.1)
+    max_velocity: 2.094395
     has_acceleration_limits: true
     max_acceleration: 5.0
     has_jerk_limits: false
@@ -13,7 +13,7 @@ joint_limits:
     min_position: -6.283185
     max_position: 6.283185
     has_velocity_limits: true
-    max_velocity: 20.94395 # Multiplied by 10 because of moveit servo bug (default velocity scaling is 0.1)
+    max_velocity: 2.094395
     has_acceleration_limits: true
     max_acceleration: 5.0
     has_jerk_limits: false
@@ -22,7 +22,7 @@ joint_limits:
     min_position: -3.141593
     max_position: 3.141593
     has_velocity_limits: true
-    max_velocity: 26.17994 # Multiplied by 10 because of moveit servo bug (default velocity scaling is 0.1)
+    max_velocity: 2.617994
     has_acceleration_limits: true
     max_acceleration: 5.0
     has_jerk_limits: false
@@ -31,7 +31,7 @@ joint_limits:
     min_position: -6.283185
     max_position: 6.283185
     has_velocity_limits: true
-    max_velocity: 36.65191 # Multiplied by 10 because of moveit servo bug (default velocity scaling is 0.1)
+    max_velocity: 3.665191
     has_acceleration_limits: true
     max_acceleration: 5.0
     has_jerk_limits: false
@@ -40,7 +40,7 @@ joint_limits:
     min_position: -6.283185
     max_position: 6.283185
     has_velocity_limits: true
-    max_velocity: 36.65191 # Multiplied by 10 because of moveit servo bug (default velocity scaling is 0.1)
+    max_velocity: 3.665191
     has_acceleration_limits: true
     max_acceleration: 5.0
     has_jerk_limits: false
@@ -49,7 +49,8 @@ joint_limits:
     min_position: -6.283185
     max_position: 6.283185
     has_velocity_limits: true
-    max_velocity: 36.65191 # Multiplied by 10 because of moveit servo bug (default velocity scaling is 0.1)
+    max_velocity: 3.665191
     has_acceleration_limits: true
     max_acceleration: 5.0
     has_jerk_limits: false
+
