@@ -15,9 +15,9 @@
       command_in_type: "speed_units"
       joint_topic: joint_states
       scale:
-        linear: 1.0 # Max Linear Velocity in m/s
-        rotational: 1.0 # Max Angular Velocity in rad/s
-        joint: 1.0
+        linear: 10.0 # Max Linear Velocity in m/s
+        rotational: 10.0 # Max Angular Velocity in rad/s
+        joint: 10.0
 
       # Command out
       # Joint Trajectory Contoller
@@ -31,5 +31,5 @@
       publish_joint_accelerations: false
 
       # Smoothing
-      use_smoothing: true
+      use_smoothing: false
       smoothing_filter_plugin_name: "online_signal_smoothing::ButterworthFilterPlugin"
