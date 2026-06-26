@@ -58,9 +58,6 @@ def launch_setup(context):
                 " ",
                 "use_mock_hardware:=",
                 use_mock_hardware,
-                " ",
-                "mock_sensor_commands:=",
-                "true",
                 ]
             )
     robot_description = {
@@ -155,15 +152,15 @@ def launch_setup(context):
         "io_and_status_controller",
         "force_torque_sensor_broadcaster",
         "ur_configuration_controller",
-        "admittance_controller",
+        "joint_trajectory_controller",
     ]
     controllers_inactive = [
-        # "forward_position_controller",
-        # "joint_trajectory_controller",
+        "admittance_controller",
+        "forward_position_controller",
     ]
 
     nodes.append(controller_spawner(controllers_active, True))
-    # nodes.append(controller_spawner(controllers_inactive, False))
+    nodes.append(controller_spawner(controllers_inactive, False))
 
     return nodes
 
