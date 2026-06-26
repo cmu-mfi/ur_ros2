@@ -155,6 +155,7 @@ def launch_setup(context):
         "joint_trajectory_controller",
     ]
     controllers_inactive = [
+        "admittance_controller",
         "forward_position_controller",
     ]
 
