@@ -41,9 +41,9 @@ namespace ur_robot_manager
     RCLCPP_INFO(this->get_logger(), "[Park Service] Plan successful. Executing movement...");
     exec_status = move_group_->execute(my_plan);
     if (exec_status == moveit::core::MoveItErrorCode::SUCCESS) {
-        RCLCPP_INFO(this->get_logger(), "[Park Service] Successfully parkedd.");
+        RCLCPP_INFO(this->get_logger(), "[Park Service] Successfully parked.");
         response->success = true;
-        response->message = "Robot successfully parkd.";
+        response->message = "Robot successfully parked.";
     } else {
         RCLCPP_ERROR(this->get_logger(), "[Park Service] Execution failed.");
         response->success = false;
