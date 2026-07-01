@@ -34,6 +34,7 @@ add_executable(
   src/joint_goal.cpp
   src/pose_goal.cpp
   src/home.cpp
+  src/park.cpp
   src/set_payload.cpp
   src/wrench_publisher.cpp
 )

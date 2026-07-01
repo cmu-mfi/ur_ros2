@@ -49,6 +49,13 @@ namespace ur_robot_manager
         rclcpp::QoS(rclcpp::KeepLast(10)).reliable().durability_volatile(),
         service_cb_group_
         );
+    // Park Service
+    park_service_ = this->create_service<Park>(
+        "park",
+        std::bind(&UrRobotManager::park_service_callback, this, std::placeholders::_1, std::placeholders::_2),
+        rclcpp::QoS(rclcpp::KeepLast(10)).reliable().durability_volatile(),
+        service_cb_group_
+        );
     // Set Payload Service
     set_payload_service_ = this->create_service<SetPayload>(
         "set_payload",
