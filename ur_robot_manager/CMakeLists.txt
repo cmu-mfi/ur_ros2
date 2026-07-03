@@ -21,7 +21,6 @@ set(DEPENDENCIES
   ur_msgs
 )
 
-
 # Find dependencies
 foreach(Dependency IN ITEMS ${DEPENDENCIES})
   find_package(${Dependency} REQUIRED)
@@ -36,6 +35,7 @@ add_executable(
   src/home.cpp
   src/park.cpp
   src/set_payload.cpp
+  src/set_io.cpp
   src/wrench_publisher.cpp
 )
 

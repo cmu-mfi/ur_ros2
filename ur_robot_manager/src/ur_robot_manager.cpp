@@ -67,6 +67,17 @@ namespace ur_robot_manager
     while (!ur_set_payload_client_->wait_for_service(std::chrono::seconds(1))) {
       RCLCPP_INFO(this->get_logger(), "Waiting for service: io_and_status_controller/set_payload");
     }
+    // Set Io Service
+    set_io_service_ = this->create_service<SetIo>(
+        "set_io",
+        std::bind(&UrRobotManager::set_io_service_callback, this, std::placeholders::_1, std::placeholders::_2),
+        rclcpp::QoS(rclcpp::KeepLast(10)).reliable().durability_volatile(),
+        service_cb_group_
+        );
+    ur_set_io_client_ = this->create_client<UrSetIo>("io_and_status_controller/set_io");
+    while (!ur_set_io_client_->wait_for_service(std::chrono::seconds(1))) {
+      RCLCPP_INFO(this->get_logger(), "Waiting for service: io_and_status_controller/set_io");
+    }
 
     // --- FT Publisher ---
     ur_wrench_subscriber_ = this->create_subscription<WrenchStamped>(

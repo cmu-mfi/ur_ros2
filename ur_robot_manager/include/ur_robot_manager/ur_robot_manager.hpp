@@ -14,7 +14,9 @@
 #include "robot_manager_interfaces/srv/home.hpp"
 #include "robot_manager_interfaces/srv/park.hpp"
 #include "robot_manager_interfaces/srv/set_payload.hpp"
+#include "robot_manager_interfaces/srv/set_io.hpp"
 #include "ur_msgs/srv/set_payload.hpp"
+#include "ur_msgs/srv/set_io.hpp"
 #include "geometry_msgs/msg/wrench_stamped.hpp"
 
 namespace ur_robot_manager
@@ -28,7 +30,9 @@ namespace ur_robot_manager
       using Home = robot_manager_interfaces::srv::Home;
       using Park = robot_manager_interfaces::srv::Park;
       using SetPayload = robot_manager_interfaces::srv::SetPayload;
+      using SetIo = robot_manager_interfaces::srv::SetIo;
       using UrSetPayload = ur_msgs::srv::SetPayload;
+      using UrSetIo = ur_msgs::srv::SetIO;
       using WrenchStamped = geometry_msgs::msg::WrenchStamped;
 
       UrRobotManager();
@@ -64,6 +68,11 @@ namespace ur_robot_manager
       rclcpp::Service<SetPayload>::SharedPtr set_payload_service_;
       void set_payload_service_callback(const std::shared_ptr<SetPayload::Request> request, std::shared_ptr<SetPayload::Response> response);
       rclcpp::Client<UrSetPayload>::SharedPtr ur_set_payload_client_;
+
+      // Set Io Service
+      rclcpp::Service<SetIo>::SharedPtr set_io_service_;
+      void set_io_service_callback(const std::shared_ptr<SetIo::Request> request, std::shared_ptr<SetIo::Response> response);
+      rclcpp::Client<UrSetIo>::SharedPtr ur_set_io_client_;
 
       // Publish ft
       rclcpp::Subscription<WrenchStamped>::SharedPtr ur_wrench_subscriber_;
