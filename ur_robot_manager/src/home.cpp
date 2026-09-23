@@ -6,12 +6,13 @@ namespace ur_robot_manager
       const std::shared_ptr<Home::Request> request,
       std::shared_ptr<Home::Response> response) 
   {
-    double velocity_scaling = std::max(0.01, std::min(abs(request->speed), 1.0));
+    double velocity_scaling = std::max(0.01, std::min(std::abs(request->speed), 1.0));
     double acceleration_scaling = velocity_scaling;
     move_group_->clearPoseTargets();
     move_group_->clearPathConstraints();
     std::vector<double> home_positions = {0.0, -M_PI/2, M_PI/2, -M_PI/2, -M_PI/2, 0.0}; 
     move_group_->setJointValueTarget(home_positions);
+    move_group_->setPlannerId("PTP");
     move_group_->setMaxVelocityScalingFactor(velocity_scaling);
     move_group_->setMaxAccelerationScalingFactor(acceleration_scaling);
     moveit::planning_interface::MoveGroupInterface::Plan my_plan;
