@@ -26,6 +26,7 @@ setup(
             'io_example = ur_examples.io_example:main',
             'payload_example = ur_examples.payload_example:main',
             'move_action_example = ur_examples.move_action_example:main',
+            'motion_testing = ur_examples.motion_testing:main',
         ],
     },
 )
