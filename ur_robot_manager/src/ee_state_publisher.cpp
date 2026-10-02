@@ -66,7 +66,8 @@ void EeStatePublisher::publishState() {
   //--------------------------------------------------
 
   geometry_msgs::msg::PoseStamped pose_msg = move_group_->getCurrentPose(tf_prefix_+"tool0");
-  // THE FIX:
+  pose_msg = getPoseInBaseFrame(pose_msg);
+  
   rclcpp::Time t_curr(pose_msg.header.stamp);
   rclcpp::Time t_last(last_pose_.header.stamp);
   double dt = (t_curr - t_last).seconds();
