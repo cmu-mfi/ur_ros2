@@ -5,6 +5,11 @@ namespace ur_robot_manager
   // --- Joint Goal - Handle Goal --- ///
   rclcpp_action::GoalResponse UrRobotManager::joint_goal_handle_goal(const rclcpp_action::GoalUUID & uuid, std::shared_ptr<const JointGoal::Goal> goal) {
     (void)uuid;
+    // Check if servoing
+    if (servo_active_) {
+      RCLCPP_ERROR(this->get_logger(), "Cannot accept Action: Servoing is currently active.");
+      return rclcpp_action::GoalResponse::REJECT;
+    }
     // Check for positions size
     if (goal->positions.size() != 6) {
       RCLCPP_ERROR(this->get_logger(), "[JointGoal] Invalid joint count! Expected 6, got %zu. Rejecting goal.", goal->positions.size());

@@ -5,6 +5,11 @@ namespace ur_robot_manager
   // --- Pose Goal - Handle Goal --- ///
   rclcpp_action::GoalResponse UrRobotManager::pose_goal_handle_goal(const rclcpp_action::GoalUUID & uuid, std::shared_ptr<const PoseGoal::Goal> goal) {
     (void)uuid;
+    // Check if servoing
+    if (servo_active_) {
+      RCLCPP_ERROR(this->get_logger(), "Cannot accept Action: Servoing is currently active.");
+      return rclcpp_action::GoalResponse::REJECT;
+    }
     // Check for valid method
     if (goal->method != "PTP" && goal->method != "LIN") {
       RCLCPP_ERROR(this->get_logger(), "[PoseGoal] Invalid method! Can be LIN or PTP, got %s", goal->method.c_str());

@@ -21,6 +21,7 @@ setup(
         'console_scripts': [
             'joint_goal_example = ur_examples.joint_goal_example:main',
             'pose_goal_example = ur_examples.pose_goal_example:main',
+            'pose_servo_example = ur_examples.pose_servo_example:main',
             'servo_force = ur_examples.servo_force:main',
             'servo_example = ur_examples.servo_example:main',
             'io_example = ur_examples.io_example:main',

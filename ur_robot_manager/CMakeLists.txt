@@ -15,6 +15,7 @@ set(DEPENDENCIES
   rclcpp
   rclcpp_action
   tf2_ros
+  tf2_eigen
   robot_manager_interfaces
   std_srvs
   geometry_msgs
@@ -37,6 +38,7 @@ add_executable(
   src/set_payload.cpp
   src/set_io.cpp
   src/wrench_publisher.cpp
+  src/pose_servo.cpp
 )
 
 add_executable(

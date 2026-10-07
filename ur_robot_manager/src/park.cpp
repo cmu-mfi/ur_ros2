@@ -6,6 +6,13 @@ namespace ur_robot_manager
       const std::shared_ptr<Park::Request> request,
       std::shared_ptr<Park::Response> response) 
   {
+    // Check if servoing
+    if (servo_active_) {
+      RCLCPP_ERROR(this->get_logger(), "Cannot accept Action: Servoing is currently active.");
+      response->success = false;
+      response->message = "Servoing is currently active.";
+      return; // <-- Changed from rclcpp_action::GoalResponse::REJECT
+    }
     double velocity_scaling = std::max(0.01, std::min(abs(request->speed), 1.0));
     double acceleration_scaling = velocity_scaling;
     move_group_->clearPoseTargets();

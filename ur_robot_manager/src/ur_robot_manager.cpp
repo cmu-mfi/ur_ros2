@@ -87,6 +87,9 @@ namespace ur_robot_manager
         );
     wrench_publisher_ = this->create_publisher<WrenchStamped>("wrench", rclcpp::QoS(10));
 
+    // Setup Moveit Servo
+    setup_servo();
+
     RCLCPP_INFO(this->get_logger(), "Robot Manager is ready!");
   }
 

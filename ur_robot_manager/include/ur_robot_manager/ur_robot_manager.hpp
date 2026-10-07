@@ -7,8 +7,15 @@
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#include <tf2_eigen/tf2_eigen.hpp>
 #include <cmath>
-
+#include <moveit_servo/servo.hpp>
+#include <moveit_servo/utils/common.hpp>
+#include <geometry_msgs/msg/pose_stamped.hpp>
+#include <trajectory_msgs/msg/joint_trajectory.hpp>
+#include <deque>
+#include <mutex>
+#include <atomic>
 #include "robot_manager_interfaces/action/joint_goal.hpp"
 #include "robot_manager_interfaces/action/pose_goal.hpp"
 #include "robot_manager_interfaces/srv/home.hpp"
@@ -79,6 +86,26 @@ namespace ur_robot_manager
       rclcpp::Publisher<WrenchStamped>::SharedPtr wrench_publisher_;
       void ur_wrench_subscription_callback_(const WrenchStamped::SharedPtr msg);
 
+      // MoveIt Servo instances
+      std::shared_ptr<const servo::ParamListener> servo_param_listener_;
+      std::unique_ptr<moveit_servo::Servo> servo_;
+      servo::Params servo_params_;
+      planning_scene_monitor::PlanningSceneMonitorPtr planning_scene_monitor_;
+      void setup_servo();
+      // Servoing I/O
+      rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr trajectory_cmd_pub_;
+      rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr servo_target_sub_;
+      rclcpp::TimerBase::SharedPtr servo_timer_;
+      // Servoing Thread State
+      std::atomic<bool> servo_active_{false};
+      rclcpp::Time last_servo_msg_time_;
+      moveit_servo::PoseCommand servo_target_pose_cmd_;
+      std::mutex servo_mutex_;
+      std::deque<moveit_servo::KinematicState> joint_cmd_rolling_window_;
+      // Callbacks
+      void servo_target_callback(const geometry_msgs::msg::PoseStamped::SharedPtr msg);
+      void servo_loop_callback();
+
       // Parameters
       std::string ns_;
       std::string tf_prefix_;
@@ -95,6 +122,7 @@ namespace ur_robot_manager
 
       // ROS2 Variables
       rclcpp::CallbackGroup::SharedPtr service_cb_group_;
+      rclcpp::CallbackGroup::SharedPtr servo_cb_group_;
   };
 
 }  // namespace ur_robot_manager

@@ -7,6 +7,7 @@ from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution, PythonExpression 
 from launch_ros.parameter_descriptions import ParameterValue
+from launch_ros.parameter_descriptions import ParameterFile
 
 def launch_setup(context):
     # Load parameters
@@ -100,6 +101,8 @@ def launch_setup(context):
             }
 
     # Robot Manager
+    servo_parameters_path = os.path.join(get_package_share_directory(pkg_prefix+"bringup"), 'config', 'servo_parameters.yaml')
+    servo_parameters = ParameterFile(servo_parameters_path, allow_substs=True)
     ur_robot_manager = Node(
         package='ur_robot_manager',
         executable='ur_robot_manager',
@@ -111,6 +114,7 @@ def launch_setup(context):
             kinematics,
             joint_limits,
             planning_scene_parameters,
+            servo_parameters,
             {
                 'ns': ns,
                 'tf_prefix': tf_prefix,
