@@ -2,6 +2,22 @@
 
 namespace ur_robot_manager
 {
+  // --- Set Payload Service - Setup --- ///
+  void UrRobotManager::set_payload_service_setup() {
+    // Set Payload Service
+    set_payload_service_ = this->create_service<SetPayload>(
+        "set_payload",
+        std::bind(&UrRobotManager::set_payload_service_callback, this, std::placeholders::_1, std::placeholders::_2),
+        rclcpp::QoS(rclcpp::KeepLast(10)).reliable().durability_volatile(),
+        service_cb_group_
+        );
+    ur_set_payload_client_ = this->create_client<UrSetPayload>("io_and_status_controller/set_payload");
+    while (!ur_set_payload_client_->wait_for_service(std::chrono::seconds(1))) {
+      RCLCPP_INFO(this->get_logger(), "Waiting for service: io_and_status_controller/set_payload");
+    }
+  }
+
+  // --- Set Payload Service - Service Callback --- ///
   void UrRobotManager::set_payload_service_callback(
       const std::shared_ptr<SetPayload::Request> request,
       std::shared_ptr<SetPayload::Response> response) 
@@ -18,16 +34,16 @@ namespace ur_robot_manager
       response->message = "Payload update failed: Mass cannot be negative.";
       return;
     }
-
     RCLCPP_INFO(this->get_logger(), "[Set Payload Service] Attempting to set payload - Mass: %.2f kg, COG: [%.3f, %.3f, %.3f]", 
-                mass, cog_x, cog_y, cog_z);
-
+        mass, cog_x, cog_y, cog_z);
+    // Create payload configuration request
     auto ur_request = std::make_shared<UrSetPayload::Request>();
     ur_request->mass = mass;
     ur_request->set__center_of_gravity(request->cog);
-
+    // Sending payload configuration request
     auto future_result = ur_set_payload_client_->async_send_request(ur_request);
     std::future_status status = future_result.wait_for(std::chrono::seconds(3));
+    // Validating payload configuration request
     if (status == std::future_status::ready) {
       auto ur_response = future_result.get();
       if (ur_response->success) {

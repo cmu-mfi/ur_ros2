@@ -31,12 +31,14 @@ endforeach()
 add_executable(
   ur_robot_manager 
   src/ur_robot_manager.cpp 
+  src/moveit.cpp
+  src/servo.cpp
   src/joint_goal.cpp
   src/pose_goal.cpp
-  src/home.cpp
-  src/park.cpp
-  src/set_payload.cpp
-  src/set_io.cpp
+  src/home_service.cpp
+  src/park_service.cpp
+  src/set_payload_service.cpp
+  src/set_io_service.cpp
   src/wrench_publisher.cpp
   src/pose_servo.cpp
 )

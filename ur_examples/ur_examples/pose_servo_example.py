@@ -2,12 +2,12 @@ import math
 import rclpy
 import time
 from rclpy.node import Node
-from geometry_msgs.msg import PoseStamped
 from rclpy.action.client import ActionClient
 from action_msgs.msg import GoalStatus
 from robot_manager_interfaces.action import PoseGoal
 from geometry_msgs.msg import Pose, Point, Quaternion
 from tf_transformations import quaternion_from_euler
+from robot_manager_interfaces.msg import PoseServo
 
 class PoseServoExample(Node):
     def __init__(self):
@@ -17,13 +17,13 @@ class PoseServoExample(Node):
         self.ns = str(self.get_parameter("ns").value) + "/"
 
         self.publisher_ = self.create_publisher(
-            PoseStamped, self.ns + 'pose_servo', 10
+            PoseServo, self.ns + 'pose_servo', 10
         )
         self.pose_goal_client = ActionClient(self, PoseGoal, self.ns + "pose_goal")
         self.pose_goal_client.wait_for_server()
 
         goal_msg = PoseGoal.Goal()
-        self.q = quaternion_from_euler(math.radians(180), math.radians(0), math.radians(180))
+        self.q = quaternion_from_euler(math.radians(0), math.radians(0), math.radians(-90))
         goal_msg.target_pose = Pose(
             position=Point(x=0.0, y=0.0, z=0.5),
             orientation=Quaternion(x=self.q[0], y=self.q[1], z=self.q[2], w=self.q[3])
@@ -31,7 +31,7 @@ class PoseServoExample(Node):
         goal_msg.velocity_scaling = 0.4
         goal_msg.acceleration_scaling = 0.2
         goal_msg.frame_id = "world" 
-        goal_msg.target_id = "ur20_tool0" 
+        goal_msg.target_id = "ur20_tc_connector" 
         goal_msg.method = "PTP"
         
         # Execution wait until action finishes completely
@@ -73,28 +73,28 @@ class PoseServoExample(Node):
         return result
 
     def timer_callback(self):
-        msg = PoseStamped()
+        msg = PoseServo()
 
         # Update Header Stamp and Frames
-        msg.header.stamp = self.get_clock().now().to_msg()
-        msg.header.frame_id = 'world'
+        msg.frame_id = 'world'
+        msg.target_id = 'ur20_tc_connector'
 
         # Calculate elapsed time in seconds
         current_time = self.get_clock().now().nanoseconds / 1e9
         elapsed_time = current_time - self.start_time
 
         # Calculate sine wave for x coordinate
-        msg.pose.position.x = self.amplitude * math.sin(
+        msg.target_pose.position.x = self.amplitude * math.sin(
             2.0 * math.pi * self.frequency * elapsed_time
         )
-        msg.pose.position.y = 0.0
-        msg.pose.position.z = 0.5
+        msg.target_pose.position.y = 0.0
+        msg.target_pose.position.z = 0.5
 
         # Set orientation quaternion
-        msg.pose.orientation.x = self.q[0]
-        msg.pose.orientation.y = self.q[1]
-        msg.pose.orientation.z = self.q[2]
-        msg.pose.orientation.w = self.q[3]
+        msg.target_pose.orientation.x = self.q[0]
+        msg.target_pose.orientation.y = self.q[1]
+        msg.target_pose.orientation.z = self.q[2]
+        msg.target_pose.orientation.w = self.q[3]
 
         self.publisher_.publish(msg)
 

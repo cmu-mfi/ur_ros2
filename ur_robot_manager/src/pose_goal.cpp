@@ -2,14 +2,21 @@
 
 namespace ur_robot_manager
 {
+  // --- Pose Goal - Setup --- ///
+  void UrRobotManager::pose_goal_setup() {
+    // PoseGoal Action Server
+    pose_goal_action_server_ = rclcpp_action::create_server<PoseGoal>(
+        this,
+        "pose_goal",
+        std::bind(&UrRobotManager::pose_goal_handle_goal, this, std::placeholders::_1, std::placeholders::_2),
+        std::bind(&UrRobotManager::pose_goal_handle_cancel, this, std::placeholders::_1),
+        std::bind(&UrRobotManager::pose_goal_handle_accepted, this, std::placeholders::_1)
+        );
+  }
+
   // --- Pose Goal - Handle Goal --- ///
   rclcpp_action::GoalResponse UrRobotManager::pose_goal_handle_goal(const rclcpp_action::GoalUUID & uuid, std::shared_ptr<const PoseGoal::Goal> goal) {
     (void)uuid;
-    // Check if servoing
-    if (servo_active_) {
-      RCLCPP_ERROR(this->get_logger(), "Cannot accept Action: Servoing is currently active.");
-      return rclcpp_action::GoalResponse::REJECT;
-    }
     // Check for valid method
     if (goal->method != "PTP" && goal->method != "LIN") {
       RCLCPP_ERROR(this->get_logger(), "[PoseGoal] Invalid method! Can be LIN or PTP, got %s", goal->method.c_str());
@@ -39,8 +46,8 @@ namespace ur_robot_manager
   rclcpp_action::CancelResponse UrRobotManager::pose_goal_handle_cancel(const std::shared_ptr<PoseGoalHandle> goal_handle) {
     RCLCPP_INFO(this->get_logger(), "[PoseGoal] Received request to cancel goal");
     (void)goal_handle;
-    if (move_group_) {
-      move_group_->stop(); // Stops the current trajectory execution
+    if (moveit_move_group_) {
+      moveit_move_group_->stop(); // Stops the current trajectory execution
     }
     return rclcpp_action::CancelResponse::ACCEPT;
   }
@@ -56,9 +63,9 @@ namespace ur_robot_manager
     auto goal = goal_handle->get_goal();
 
     // Determine the actual target frame and tool0 frame
-    std::string tool0_frame = move_group_->getEndEffectorLink();
+    std::string tool0_frame = moveit_move_group_->getEndEffectorLink();
     std::string target_frame = goal->target_id.empty() ? tool0_frame : goal->target_id;
-    std::string reference_frame = goal->frame_id.empty() ? move_group_->getPlanningFrame() : goal->frame_id;
+    std::string reference_frame = goal->frame_id.empty() ? moveit_move_group_->getPlanningFrame() : goal->frame_id;
     geometry_msgs::msg::Pose goal_pose = goal->target_pose;
     // If target_frame isnt tool0:
     if (target_frame != tool0_frame) {
@@ -92,19 +99,19 @@ namespace ur_robot_manager
       }
     }
     // Clear previous states
-    move_group_->clearPoseTargets();
-    move_group_->clearPathConstraints();
-    move_group_->clearTrajectoryConstraints();
+    moveit_move_group_->clearPoseTargets();
+    moveit_move_group_->clearPathConstraints();
+    moveit_move_group_->clearTrajectoryConstraints();
 
     // Plan
-    move_group_->setPoseReferenceFrame(reference_frame);
-    move_group_->setPoseTarget(goal_pose, tool0_frame);
-    move_group_->setMaxVelocityScalingFactor(goal->velocity_scaling);
-    move_group_->setMaxAccelerationScalingFactor(goal->acceleration_scaling);
-    move_group_->setPlannerId(goal->method);
-    geometry_msgs::msg::PoseStamped start_pose = move_group_->getCurrentPose(tool0_frame);
+    moveit_move_group_->setPoseReferenceFrame(reference_frame);
+    moveit_move_group_->setPoseTarget(goal_pose, tool0_frame);
+    moveit_move_group_->setMaxVelocityScalingFactor(goal->velocity_scaling);
+    moveit_move_group_->setMaxAccelerationScalingFactor(goal->acceleration_scaling);
+    moveit_move_group_->setPlannerId(goal->method);
+    geometry_msgs::msg::PoseStamped start_pose = moveit_move_group_->getCurrentPose(tool0_frame);
     moveit::planning_interface::MoveGroupInterface::Plan my_plan;
-    bool success = (move_group_->plan(my_plan) == moveit::core::MoveItErrorCode::SUCCESS);
+    bool success = (moveit_move_group_->plan(my_plan) == moveit::core::MoveItErrorCode::SUCCESS);
     if (!success) {
       RCLCPP_ERROR(this->get_logger(), "[PoseGoal] Planning failed!");
       result->success = false;
@@ -117,7 +124,7 @@ namespace ur_robot_manager
 
     // Execution
     auto exec_future = std::async(std::launch::async, [this, &my_plan]() {
-        return move_group_->execute(my_plan);
+        return moveit_move_group_->execute(my_plan);
         });
 
     // Feedback 
@@ -135,7 +142,7 @@ namespace ur_robot_manager
         return;
       }
       // Calculate progress
-      geometry_msgs::msg::PoseStamped current_pose = move_group_->getCurrentPose(tool0_frame);
+      geometry_msgs::msg::PoseStamped current_pose = moveit_move_group_->getCurrentPose(tool0_frame);
       if (total_distance > 0.001) {
         double current_distance = calculate_cartesian_distance(current_pose.pose.position, goal_pose.position);
         double progress = (1.0 - (current_distance / total_distance)) * 100.0;
@@ -174,7 +181,7 @@ namespace ur_robot_manager
     };
   // --- Helper Function - Check if transform is a child of tool0 --- ///
   bool UrRobotManager::is_frame_tool0_child(const std::string& target_frame) {
-    const std::string tool0_frame = move_group_->getEndEffectorLink();
+    const std::string tool0_frame = moveit_move_group_->getEndEffectorLink();
     if (target_frame == tool0_frame) {
       return true;
     }
