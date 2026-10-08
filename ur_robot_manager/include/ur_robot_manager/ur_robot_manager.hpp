@@ -28,6 +28,9 @@
 #include "geometry_msgs/msg/wrench_stamped.hpp"
 #include "trajectory_msgs/msg/joint_trajectory.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
+#include <geometry_msgs/msg/accel_stamped.hpp>
+#include <geometry_msgs/msg/pose_stamped.hpp>
+#include <geometry_msgs/msg/twist_stamped.hpp>
 
 namespace ur_robot_manager
 {
@@ -53,6 +56,14 @@ namespace ur_robot_manager
       // Parameters
       std::string ns_;
       std::string tf_prefix_;
+
+      // TF Variables
+      std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
+      std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+
+      // ROS2 Variables
+      rclcpp::CallbackGroup::SharedPtr service_cb_group_;
+      rclcpp::CallbackGroup::SharedPtr servo_cb_group_;
 
       // MoveIt
       void moveit_setup();
@@ -138,13 +149,18 @@ namespace ur_robot_manager
       void twist_servo_subscription_callback_(const geometry_msgs::msg::TwistStamped::SharedPtr msg);
       void twist_servo_loop_callback_();
 
-      // TF Variables
-      std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
-      std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
-
-      // ROS2 Variables
-      rclcpp::CallbackGroup::SharedPtr service_cb_group_;
-      rclcpp::CallbackGroup::SharedPtr servo_cb_group_;
+      // EE State Publisher
+      void ee_state_publisher_setup();
+      void ee_state_publisher_loop_callback_();
+      geometry_msgs::msg::PoseStamped get_pose_in_base_frame(geometry_msgs::msg::PoseStamped tool_pose);
+      std::string ee_link_;
+      const moveit::core::JointModelGroup * ee_joint_model_group_;
+      rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr ee_pose_pub_;
+      rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr ee_twist_pub_;
+      rclcpp::Publisher<geometry_msgs::msg::AccelStamped>::SharedPtr ee_accel_pub_;
+      rclcpp::TimerBase::SharedPtr ee_state_timer_;
+      geometry_msgs::msg::PoseStamped ee_last_pose_;
+      geometry_msgs::msg::TwistStamped ee_last_twist_;
   };
 
 }  // namespace ur_robot_manager

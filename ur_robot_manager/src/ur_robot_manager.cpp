@@ -35,6 +35,8 @@ namespace ur_robot_manager
     set_io_service_setup();
     // Wrench Publisher Setup
     wrench_publisher_setup();
+    // EE State Publisher Setup
+    ee_state_publisher_setup();
 
     RCLCPP_INFO(this->get_logger(), "Robot Manager is ready!");
   }
@@ -44,14 +46,21 @@ namespace ur_robot_manager
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
     auto node = std::make_shared<ur_robot_manager::UrRobotManager>();
-
-    node->setup();
-
+    
     rclcpp::executors::MultiThreadedExecutor executor;
     executor.add_node(node);
+
+    std::thread setup_thread([&node]() {
+        node->setup();
+    });
+
     executor.spin();
 
     rclcpp::shutdown();
+    
+    if (setup_thread.joinable()) {
+        setup_thread.join();
+    }
+    
     return 0;
 }
-
