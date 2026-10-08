@@ -12,18 +12,24 @@ void UrRobotManager::servo_setup() {
   // 2. Initialize the Servo object
   servo_ = std::make_unique<moveit_servo::Servo>(shared_from_this(), servo_param_listener_, servo_planning_scene_monitor_);
   servo_->setCommandType(moveit_servo::CommandType::POSE);
-  // 3. Setup Publisher & Subscriber
+  // 3. Setup Publisher & Subscribers
   servo_trajectory_publisher_ = this->create_publisher<trajectory_msgs::msg::JointTrajectory>(
       servo_params_.command_out_topic, rclcpp::SystemDefaultsQoS());
   pose_servo_subscriber_ = this->create_subscription<PoseServo>(
       "pose_servo", rclcpp::SystemDefaultsQoS(),
       std::bind(&UrRobotManager::pose_servo_subscription_callback_, this, std::placeholders::_1));
-  // 4. Setup 500Hz Timer for Real-Time Execution
+  twist_servo_subscriber_ = this->create_subscription<geometry_msgs::msg::TwistStamped>(
+      "twist_servo", rclcpp::SystemDefaultsQoS(),
+      std::bind(&UrRobotManager::twist_servo_subscription_callback_, this, std::placeholders::_1));
+  // 4. Setup Timers for Real-Time Execution
   pose_servo_timer_ = this->create_wall_timer(
       std::chrono::duration<double>(servo_params_.publish_period),
       std::bind(&UrRobotManager::pose_servo_loop_callback_, this),
       servo_cb_group_);
+  twist_servo_timer_ = this->create_wall_timer(
+      std::chrono::duration<double>(servo_params_.publish_period),
+      std::bind(&UrRobotManager::twist_servo_loop_callback_, this),
+      servo_cb_group_);
 }
-
 
 }  // namespace ur_robot_manager

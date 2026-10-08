@@ -41,6 +41,7 @@ add_executable(
   src/set_io_service.cpp
   src/wrench_publisher.cpp
   src/pose_servo.cpp
+  src/twist_servo.cpp
 )
 
 add_executable(

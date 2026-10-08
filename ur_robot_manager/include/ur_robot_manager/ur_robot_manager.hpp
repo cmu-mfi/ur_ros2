@@ -27,6 +27,7 @@
 #include "ur_msgs/srv/set_io.hpp"
 #include "geometry_msgs/msg/wrench_stamped.hpp"
 #include "trajectory_msgs/msg/joint_trajectory.hpp"
+#include "geometry_msgs/msg/twist_stamped.hpp"
 
 namespace ur_robot_manager
 {
@@ -125,6 +126,17 @@ namespace ur_robot_manager
       std::deque<moveit_servo::KinematicState> pose_servo_joint_cmd_rolling_window_;
       void pose_servo_subscription_callback_(const PoseServo::SharedPtr msg);
       void pose_servo_loop_callback_();
+
+      // Twist Servo
+      rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr twist_servo_subscriber_;
+      rclcpp::TimerBase::SharedPtr twist_servo_timer_;
+      std::atomic<bool> twist_servo_active_{false};
+      rclcpp::Time twist_servo_last_msg_time_;
+      moveit_servo::TwistCommand twist_servo_target_cmd_;
+      std::mutex twist_servo_mutex_;
+      std::deque<moveit_servo::KinematicState> twist_servo_joint_cmd_rolling_window_;
+      void twist_servo_subscription_callback_(const geometry_msgs::msg::TwistStamped::SharedPtr msg);
+      void twist_servo_loop_callback_();
 
       // TF Variables
       std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
