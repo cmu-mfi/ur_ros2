@@ -82,6 +82,7 @@ namespace ur_robot_manager
       // ROS2 Variables
       rclcpp::CallbackGroup::SharedPtr service_cb_group_;
       rclcpp::CallbackGroup::SharedPtr servo_cb_group_;
+      rclcpp::CallbackGroup::SharedPtr ee_state_cb_group_;
 
       // MoveIt
       void moveit_setup();

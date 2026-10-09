@@ -14,6 +14,7 @@ namespace ur_robot_manager
     // ROS2 Setup
     service_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
     servo_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+    ee_state_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
     // TF setup
     tf_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock()); 
     tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);

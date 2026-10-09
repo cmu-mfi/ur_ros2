@@ -57,10 +57,10 @@ namespace ur_robot_manager {
 
     // Original loop was 200Hz, translating to a 5ms timer
     ee_state_timer_ = this->create_wall_timer(
-      std::chrono::milliseconds(5),
-      std::bind(&UrRobotManager::ee_state_publisher_loop_callback_, this),
-      service_cb_group_
-    );
+        std::chrono::milliseconds(5),
+        std::bind(&UrRobotManager::ee_state_publisher_loop_callback_, this),
+        ee_state_cb_group_
+        );
   }
 
   // --- EE State Publisher - Loop Callback --- ///
