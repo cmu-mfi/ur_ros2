@@ -17,6 +17,11 @@ namespace ur_robot_manager
   // --- Wrench Publisher - Subscription Callback --- ///
   void UrRobotManager::ur_wrench_subscription_callback_(const WrenchStamped::SharedPtr msg) 
   {
+    {
+      std::lock_guard<std::mutex> lock(wrench_mutex_);
+      previous_wrench_ = current_wrench_;
+      current_wrench_ = *msg;
+    }
     wrench_publisher_->publish(*msg);
   }
 }  // namespace ur_robot_manager

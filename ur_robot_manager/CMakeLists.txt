@@ -43,6 +43,8 @@ add_executable(
   src/pose_servo.cpp
   src/twist_servo.cpp
   src/ee_state_publisher.cpp
+  src/admittance_pose_servo.cpp
+  src/tf.cpp
 )
 
 # Add include directories for the executable

@@ -62,41 +62,20 @@ namespace ur_robot_manager
     auto result = std::make_shared<PoseGoal::Result>();
     auto goal = goal_handle->get_goal();
 
-    // Determine the actual target frame and tool0 frame
+    // Determine target and reference frames
     std::string tool0_frame = moveit_move_group_->getEndEffectorLink();
-    std::string target_frame = goal->target_id.empty() ? tool0_frame : goal->target_id;
     std::string reference_frame = goal->frame_id.empty() ? moveit_move_group_->getPlanningFrame() : goal->frame_id;
-    geometry_msgs::msg::Pose goal_pose = goal->target_pose;
-    // If target_frame isnt tool0:
-    if (target_frame != tool0_frame) {
-      // Check wheter the target_frame is a child of tool0:
-      if (!is_frame_tool0_child(target_frame)) {
-        RCLCPP_ERROR(this->get_logger(), "[PoseGoal] TF Verification Failed: Target Frame '%s' is not a Child of '%s'", target_frame.c_str(), tool0_frame.c_str());
-        result->success = false;
-        result->error_code = 1;
-        result->message = "Target Frame '" + target_frame + "' is not a Child of '" + tool0_frame + "'";
-        goal_handle->abort(result);
-        return;
-      }
-      // Calculate tool0 pose from target pose
-      try {
-        geometry_msgs::msg::TransformStamped tool0_in_target_msg = 
-          tf_buffer_->lookupTransform(target_frame, tool0_frame, rclcpp::Time(0), rclcpp::Duration::from_seconds(0.5));
-        tf2::Transform target_pose;
-        tf2::fromMsg(goal->target_pose, target_pose);
-        tf2::Transform tf_tool0_in_target;
-        tf2::fromMsg(tool0_in_target_msg.transform, tf_tool0_in_target);
-        tf2::Transform tf_tool0_in_frame = target_pose * tf_tool0_in_target;
-        tf2::toMsg(tf_tool0_in_frame, goal_pose);
-      } catch (const tf2::TransformException & ex) {
-        RCLCPP_ERROR(this->get_logger(), "[PoseGoal] TF Verification Failed: Could not transform %s to %s: %s", 
-            tool0_frame.c_str(), target_frame.c_str(), ex.what());
-        result->success = false;
-        result->error_code = 1;
-        result->message = "Invalid TF frames provided";
-        goal_handle->abort(result);
-        return;
-      }
+    geometry_msgs::msg::Pose goal_pose;
+
+    try {
+      goal_pose = transform_pose_to_tool0_frame(goal->target_pose, goal->target_id);
+    } catch (const tf2::TransformException & ex) {
+      RCLCPP_ERROR(this->get_logger(), "[PoseGoal] TF Verification Failed: %s", ex.what());
+      result->success = false;
+      result->error_code = 1;
+      result->message = ex.what();
+      goal_handle->abort(result);
+      return;
     }
     // Clear previous states
     moveit_move_group_->clearPoseTargets();
@@ -179,21 +158,4 @@ namespace ur_robot_manager
   double UrRobotManager::calculate_cartesian_distance(const geometry_msgs::msg::Point& p1, const geometry_msgs::msg::Point& p2) {
       return std::sqrt(std::pow(p1.x - p2.x, 2) + std::pow(p1.y - p2.y, 2) + std::pow(p1.z - p2.z, 2));
     };
-  // --- Helper Function - Check if transform is a child of tool0 --- ///
-  bool UrRobotManager::is_frame_tool0_child(const std::string& target_frame) {
-    const std::string tool0_frame = moveit_move_group_->getEndEffectorLink();
-    if (target_frame == tool0_frame) {
-      return true;
-    }
-    std::string current_frame = target_frame;
-    std::string next_parent;
-    tf2::TimePoint time = tf2::TimePointZero; 
-    while (tf_buffer_->_getParent(current_frame, time, next_parent)) {
-      if (next_parent == tool0_frame) {
-        return true;
-      }
-      current_frame = next_parent;
-    }
-    return false;
-  }
 }  // namespace ur_robot_manager

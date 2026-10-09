@@ -43,13 +43,13 @@ def main(args=None):
         goal_msg = PoseGoal.Goal()
         q = quaternion_from_euler(math.radians(180), math.radians(0), math.radians(-90))
         goal_msg.target_pose = Pose(
-                position=Point(x=0.8, y=0.0, z=0.8),
+                position=Point(x=0.0, y=0.0, z=0.8),
                 orientation=Quaternion(x=q[0], y=q[1], z=q[2], w=q[3])
                 )
         goal_msg.velocity_scaling = 0.2
         goal_msg.acceleration_scaling = 0.1
-        goal_msg.frame_id = "" # Can be any frame. If empty -> base_link used
-        goal_msg.target_id = "" # Can be any child of tool0. If empty -> tool0 used
+        goal_msg.frame_id = "world" # Can be any frame. If empty -> base_link used
+        goal_msg.target_id = "ur20_tc_connector" # Can be any child of tool0. If empty -> tool0 used
         goal_msg.method = "PTP" # Point-to-Point
 
         # Execution without Feedback

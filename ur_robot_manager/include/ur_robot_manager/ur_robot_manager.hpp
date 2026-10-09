@@ -23,17 +23,31 @@
 #include "robot_manager_interfaces/srv/set_payload.hpp"
 #include "robot_manager_interfaces/srv/set_io.hpp"
 #include "robot_manager_interfaces/msg/pose_servo.hpp"
+#include "robot_manager_interfaces/srv/start_admittance_pose_servo.hpp"
+#include "std_srvs/srv/trigger.hpp"
 #include "ur_msgs/srv/set_payload.hpp"
 #include "ur_msgs/srv/set_io.hpp"
-#include "geometry_msgs/msg/wrench_stamped.hpp"
 #include "trajectory_msgs/msg/joint_trajectory.hpp"
+#include "geometry_msgs/msg/wrench_stamped.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
-#include <geometry_msgs/msg/accel_stamped.hpp>
-#include <geometry_msgs/msg/pose_stamped.hpp>
-#include <geometry_msgs/msg/twist_stamped.hpp>
+#include "geometry_msgs/msg/accel_stamped.hpp"
+#include "geometry_msgs/msg/pose_stamped.hpp"
+#include "geometry_msgs/msg/twist_stamped.hpp"
 
 namespace ur_robot_manager
 {
+  // Admittance Pose Servo Configuration Struct
+  struct AdmittancePoseServoConfig
+  {
+    geometry_msgs::msg::Wrench target_wrench;
+    std::array<double, 6> mass;
+    std::array<double, 6> damping;
+    std::array<double, 6> stiffness;
+    std::array<bool, 6> selection_vector;
+    std::array<double, 6> max_velocity;
+    std::array<double, 6> max_acceleration;
+  };
+
   class UrRobotManager : public rclcpp::Node {
     public:
       using JointGoal = robot_manager_interfaces::action::JointGoal;
@@ -48,6 +62,8 @@ namespace ur_robot_manager
       using UrSetPayload = ur_msgs::srv::SetPayload;
       using UrSetIo = ur_msgs::srv::SetIO;
       using WrenchStamped = geometry_msgs::msg::WrenchStamped;
+      using StartAdmittancePoseServo = robot_manager_interfaces::srv::StartAdmittancePoseServo;
+      using Trigger = std_srvs::srv::Trigger;
 
       UrRobotManager();
       void setup();
@@ -57,9 +73,11 @@ namespace ur_robot_manager
       std::string ns_;
       std::string tf_prefix_;
 
-      // TF Variables
+      // TF 
       std::shared_ptr<tf2_ros::Buffer> tf_buffer_;
       std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+      geometry_msgs::msg::Pose transform_pose_to_tool0_frame(const geometry_msgs::msg::Pose& pose, const std::string& input_frame);
+      geometry_msgs::msg::Pose transform_pose_to_base_link_frame(const geometry_msgs::msg::Pose& pose, const std::string& input_frame);
 
       // ROS2 Variables
       rclcpp::CallbackGroup::SharedPtr service_cb_group_;
@@ -89,7 +107,6 @@ namespace ur_robot_manager
       void pose_goal_handle_accepted(const std::shared_ptr<PoseGoalHandle> goal_handle);
       void pose_goal_handle_execution(const std::shared_ptr<PoseGoalHandle> goal_handle);
       double calculate_cartesian_distance(const geometry_msgs::msg::Point& p1, const geometry_msgs::msg::Point& p2);
-      bool is_frame_tool0_child(const std::string& target_frame);
 
       // Home Service
       void home_service_setup();
@@ -118,6 +135,9 @@ namespace ur_robot_manager
       rclcpp::Publisher<WrenchStamped>::SharedPtr wrench_publisher_;
       rclcpp::Subscription<WrenchStamped>::SharedPtr ur_wrench_subscriber_;
       void ur_wrench_subscription_callback_(const WrenchStamped::SharedPtr msg);
+      std::mutex wrench_mutex_;
+      WrenchStamped current_wrench_;
+      WrenchStamped previous_wrench_;
 
       // Servo 
       void servo_setup();
@@ -159,8 +179,30 @@ namespace ur_robot_manager
       rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr ee_twist_pub_;
       rclcpp::Publisher<geometry_msgs::msg::AccelStamped>::SharedPtr ee_accel_pub_;
       rclcpp::TimerBase::SharedPtr ee_state_timer_;
-      geometry_msgs::msg::PoseStamped ee_last_pose_;
-      geometry_msgs::msg::TwistStamped ee_last_twist_;
+      // State storage and Thread Safety
+      std::mutex ee_state_mutex_;
+      geometry_msgs::msg::PoseStamped ee_current_pose_;
+      geometry_msgs::msg::PoseStamped ee_previous_pose_1;
+      geometry_msgs::msg::PoseStamped ee_previous_pose_2;
+      geometry_msgs::msg::TwistStamped ee_current_twist_;
+      geometry_msgs::msg::AccelStamped ee_current_accel_;
+
+      // Admittance Pose Servo
+      void admittance_pose_servo_setup();
+      void start_admittance_pose_servo_service_callback(
+        const std::shared_ptr<StartAdmittancePoseServo::Request> request,
+        std::shared_ptr<StartAdmittancePoseServo::Response> response);
+      void stop_admittance_pose_servo_service_callback(
+        const std::shared_ptr<Trigger::Request> request,
+        std::shared_ptr<Trigger::Response> response);
+      void admittance_pose_servo_loop_callback_();
+      rclcpp::Service<StartAdmittancePoseServo>::SharedPtr start_admittance_pose_servo_service_;
+      rclcpp::Service<Trigger>::SharedPtr stop_admittance_pose_servo_service_;
+      rclcpp::TimerBase::SharedPtr admittance_pose_servo_timer_;
+      std::atomic<bool> admittance_pose_servo_active_{false};
+      AdmittancePoseServoConfig admittance_pose_servo_config_;
+      std::mutex admittance_pose_servo_mutex_;
+      rclcpp::Time admittance_pose_servo_previous_time_;
   };
 
 }  // namespace ur_robot_manager
