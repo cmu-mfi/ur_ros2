@@ -214,12 +214,6 @@ namespace ur_robot_manager
       std::array<double, 6> admittance_f_k_1_ = {0.0};
       std::array<double, 6> admittance_f_k_2_ = {0.0};
       std::array<double, 6> admittance_wrench_offset_ = {0.0};
-
-      // TEMPORARY CODE - DELETE LATER
-      rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr temp_k_publisher_;
-      rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr temp_b_publisher_;
-      rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr temp_m_publisher_;
-      // END TEMPORARY CODE
   };
 
 }  // namespace ur_robot_manager

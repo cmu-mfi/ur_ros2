@@ -31,11 +31,6 @@ namespace ur_robot_manager
         std::bind(&UrRobotManager::admittance_pose_servo_loop_callback_, this),
         servo_cb_group_
         );
-    // TEMPORARY CODE - DELETE LATER
-    temp_k_publisher_ = this->create_publisher<std_msgs::msg::Float64MultiArray>("admittance_k", 10);
-    temp_b_publisher_ = this->create_publisher<std_msgs::msg::Float64MultiArray>("admittance_b", 10);
-    temp_m_publisher_ = this->create_publisher<std_msgs::msg::Float64MultiArray>("admittance_m", 10);
-    // END TEMPORARY CODE
     RCLCPP_INFO(this->get_logger(), "[Admittance Pose Servo] Initialized services, subscriber and loop timer.");
   }
 
@@ -188,14 +183,6 @@ namespace ur_robot_manager
       admittance_pose_servo_config_.target_wrench.torque.z
     };
     std::array<double, 6> x_k_0 = {0.0};
-    // TEMPORARY CODE - DELETE LATER
-    std_msgs::msg::Float64MultiArray temp_k_msg;
-    std_msgs::msg::Float64MultiArray temp_b_msg;
-    std_msgs::msg::Float64MultiArray temp_m_msg;
-    temp_k_msg.data.resize(6, 0.0);
-    temp_b_msg.data.resize(6, 0.0);
-    temp_m_msg.data.resize(6, 0.0);
-    // END TEMPORARY CODE
     // Loop over all dimensions
     for (size_t i = 0; i < 6; ++i) {
       // Check selection vector
@@ -216,11 +203,6 @@ namespace ur_robot_manager
       // Calculate adaptive damping and stiffness
       double B = admittance_pose_servo_config_.damping[i];
       double K = admittance_pose_servo_config_.stiffness[i];
-      // TEMPORARY CODE - DELETE LATER
-      temp_k_msg.data[i] = K;
-      temp_b_msg.data[i] = B;
-      temp_m_msg.data[i] = M;
-      // END TEMPORARY CODE
       // Compute Discrete Transfer Function Output
       double num = dt2 * (f_k_0 + 2.0 * admittance_f_k_1_[i] + admittance_f_k_2_[i])
                    - (2.0 * K * dt2 - 8.0 * M) * admittance_x_k_1_[i]
@@ -248,11 +230,6 @@ namespace ur_robot_manager
       admittance_f_k_2_[i] = admittance_f_k_1_[i];
       admittance_f_k_1_[i] = f_k_0;
     }
-    // TEMPORARY CODE - DELETE LATER
-    temp_k_publisher_->publish(temp_k_msg);
-    temp_b_publisher_->publish(temp_b_msg);
-    temp_m_publisher_->publish(temp_m_msg);
-    // END TEMPORARY CODE
     geometry_msgs::msg::Pose commanded_pose = desired_pose;
     // Apply linear deviation directly
     commanded_pose.position.x += x_k_0[0];
