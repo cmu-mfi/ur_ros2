@@ -42,8 +42,6 @@ namespace ur_robot_manager {
           if (initial_pose.pose.orientation.w != 0.0) {
             std::lock_guard<std::mutex> lock(ee_state_mutex_);
             ee_current_pose_ = initial_pose;
-            ee_previous_pose_1 = initial_pose;
-            ee_previous_pose_2 = initial_pose;
             break;
           }
         } catch (const tf2::TransformException &) {
@@ -65,7 +63,7 @@ namespace ur_robot_manager {
 
   // --- EE State Publisher - Loop Callback --- ///
   void UrRobotManager::ee_state_publisher_loop_callback_() {
-    // Pose - transform from root_frame to planning_frame (base_link)
+    // Pose from MoveIt is already in planning frame
     geometry_msgs::msg::PoseStamped pose_msg = moveit_move_group_->getCurrentPose(tf_prefix_ + "tool0");
 
     geometry_msgs::msg::PoseStamped last_pose;
@@ -76,81 +74,66 @@ namespace ur_robot_manager {
       last_twist = ee_current_twist_;
     }
 
-    rclcpp::Time t_curr(pose_msg.header.stamp);
-    rclcpp::Time t_last(last_pose.header.stamp);
-    double dt = (t_curr - t_last).seconds();
-    
+    const rclcpp::Time t_curr(pose_msg.header.stamp);
+    const rclcpp::Time t_last(last_pose.header.stamp);
+    const double dt = (t_curr - t_last).seconds();
+
     if (dt <= 0.0) {
       return;
     }
 
-    // Twist - transform from root_frame to planning_frame
+    // Calculate Twist (Linear and Angular Velocity)
     geometry_msgs::msg::TwistStamped twist_msg;
     twist_msg.header = pose_msg.header;
-    Eigen::Vector3d linear_velocity, angular_velocity;
 
-    tf2::Quaternion q_last(last_pose.pose.orientation.x, last_pose.pose.orientation.y, last_pose.pose.orientation.z, last_pose.pose.orientation.w);
-    tf2::Quaternion q_curr(pose_msg.pose.orientation.x, pose_msg.pose.orientation.y, pose_msg.pose.orientation.z, pose_msg.pose.orientation.w);
+    twist_msg.twist.linear.x = (pose_msg.pose.position.x - last_pose.pose.position.x) / dt;
+    twist_msg.twist.linear.y = (pose_msg.pose.position.y - last_pose.pose.position.y) / dt;
+    twist_msg.twist.linear.z = (pose_msg.pose.position.z - last_pose.pose.position.z) / dt;
 
-    // Linear velocity
-    linear_velocity(0) = (pose_msg.pose.position.x - last_pose.pose.position.x) / dt;
-    linear_velocity(1) = (pose_msg.pose.position.y - last_pose.pose.position.y) / dt;
-    linear_velocity(2) = (pose_msg.pose.position.z - last_pose.pose.position.z) / dt;
+    const tf2::Quaternion q_last(
+        last_pose.pose.orientation.x,
+        last_pose.pose.orientation.y,
+        last_pose.pose.orientation.z,
+        last_pose.pose.orientation.w);
+    const tf2::Quaternion q_curr(
+        pose_msg.pose.orientation.x,
+        pose_msg.pose.orientation.y,
+        pose_msg.pose.orientation.z,
+        pose_msg.pose.orientation.w);
 
-    // Angular velocity
-    tf2::Quaternion q_diff = q_curr * q_last.inverse();
-    q_diff.normalize();
-    double angle = q_diff.getAngle();
-    tf2::Vector3 axis(0.0, 0.0, 0.0);
+    tf2::Quaternion q_diff = (q_curr * q_last.inverse()).normalized();
+    const double angle = q_diff.getAngle();
     if (std::abs(angle) > 1e-8) {
-      axis = q_diff.getAxis();
+      const tf2::Vector3 axis = q_diff.getAxis();
+      const double scale = angle / dt;
+      twist_msg.twist.angular.x = axis.x() * scale;
+      twist_msg.twist.angular.y = axis.y() * scale;
+      twist_msg.twist.angular.z = axis.z() * scale;
     }
-    angular_velocity(0) = axis.x() * angle / dt;
-    angular_velocity(1) = axis.y() * angle / dt;
-    angular_velocity(2) = axis.z() * angle / dt;
 
-    twist_msg.twist.linear.x = linear_velocity(0);
-    twist_msg.twist.linear.y = linear_velocity(1);
-    twist_msg.twist.linear.z = linear_velocity(2);
-    twist_msg.twist.angular.x = angular_velocity(0);
-    twist_msg.twist.angular.y = angular_velocity(1);
-    twist_msg.twist.angular.z = angular_velocity(2);
-
-    // Acceleration - transform from root_frame to planning_frame
+    // Calculate Acceleration directly into message
     geometry_msgs::msg::AccelStamped accel_msg;
     accel_msg.header = pose_msg.header;
-    geometry_msgs::msg::Vector3 delta_linear_velocity;
-    geometry_msgs::msg::Vector3 delta_angular_velocity;
 
-    delta_linear_velocity.x = twist_msg.twist.linear.x - last_twist.twist.linear.x;
-    delta_linear_velocity.y = twist_msg.twist.linear.y - last_twist.twist.linear.y;
-    delta_linear_velocity.z = twist_msg.twist.linear.z - last_twist.twist.linear.z;
+    accel_msg.accel.linear.x = (twist_msg.twist.linear.x - last_twist.twist.linear.x) / dt;
+    accel_msg.accel.linear.y = (twist_msg.twist.linear.y - last_twist.twist.linear.y) / dt;
+    accel_msg.accel.linear.z = (twist_msg.twist.linear.z - last_twist.twist.linear.z) / dt;
 
-    delta_angular_velocity.x = twist_msg.twist.angular.x - last_twist.twist.angular.x;
-    delta_angular_velocity.y = twist_msg.twist.angular.y - last_twist.twist.angular.y;
-    delta_angular_velocity.z = twist_msg.twist.angular.z - last_twist.twist.angular.z;
+    accel_msg.accel.angular.x = (twist_msg.twist.angular.x - last_twist.twist.angular.x) / dt;
+    accel_msg.accel.angular.y = (twist_msg.twist.angular.y - last_twist.twist.angular.y) / dt;
+    accel_msg.accel.angular.z = (twist_msg.twist.angular.z - last_twist.twist.angular.z) / dt;
 
-    accel_msg.accel.linear.x = delta_linear_velocity.x / dt;
-    accel_msg.accel.linear.y = delta_linear_velocity.y / dt;
-    accel_msg.accel.linear.z = delta_linear_velocity.z / dt;
-    accel_msg.accel.angular.x = delta_angular_velocity.x / dt;
-    accel_msg.accel.angular.y = delta_angular_velocity.y / dt;
-    accel_msg.accel.angular.z = delta_angular_velocity.z / dt;
-
-    // Update internal state variables under mutex lock
+    // Update internal state under mutex lock
     {
       std::lock_guard<std::mutex> lock(ee_state_mutex_);
-      ee_previous_pose_2 = ee_previous_pose_1;
-      ee_previous_pose_1 = ee_current_pose_;
       ee_current_pose_ = pose_msg;
       ee_current_twist_ = twist_msg;
       ee_current_accel_ = accel_msg;
     }
 
-    // Publish msgs
+    // Publish state
     ee_pose_pub_->publish(pose_msg);
     ee_twist_pub_->publish(twist_msg);
     ee_accel_pub_->publish(accel_msg);
   }
-
 }  // namespace ur_robot_manager

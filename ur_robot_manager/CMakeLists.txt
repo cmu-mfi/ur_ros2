@@ -18,6 +18,7 @@ set(DEPENDENCIES
   tf2_eigen
   robot_manager_interfaces
   std_srvs
+  std_msgs
   geometry_msgs
   ur_msgs
 )

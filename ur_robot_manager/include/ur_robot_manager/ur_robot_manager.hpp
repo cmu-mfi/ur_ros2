@@ -33,17 +33,22 @@
 #include "geometry_msgs/msg/accel_stamped.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
+// TEMPORARY CODE - DELETE LATER
+#include "std_msgs/msg/float64_multi_array.hpp"
+// END TEMPORARY CODE
 
 namespace ur_robot_manager
 {
   // Admittance Pose Servo Configuration Struct
   struct AdmittancePoseServoConfig
   {
-    geometry_msgs::msg::Wrench target_wrench;
-    std::array<double, 6> mass;
-    std::array<double, 6> damping;
-    std::array<double, 6> stiffness;
+    geometry_msgs::msg::Wrench contact_wrench;
     std::array<bool, 6> selection_vector;
+    std::array<double, 6> mass;
+    std::array<double, 6> free_damping;
+    std::array<double, 6> contact_damping;
+    std::array<double, 6> free_stiffness;
+    std::array<double, 6> contact_stiffness;
     std::array<double, 6> max_velocity;
     std::array<double, 6> max_acceleration;
   };
@@ -138,7 +143,6 @@ namespace ur_robot_manager
       void ur_wrench_subscription_callback_(const WrenchStamped::SharedPtr msg);
       std::mutex wrench_mutex_;
       WrenchStamped current_wrench_;
-      WrenchStamped previous_wrench_;
 
       // Servo 
       void servo_setup();
@@ -183,27 +187,41 @@ namespace ur_robot_manager
       // State storage and Thread Safety
       std::mutex ee_state_mutex_;
       geometry_msgs::msg::PoseStamped ee_current_pose_;
-      geometry_msgs::msg::PoseStamped ee_previous_pose_1;
-      geometry_msgs::msg::PoseStamped ee_previous_pose_2;
       geometry_msgs::msg::TwistStamped ee_current_twist_;
       geometry_msgs::msg::AccelStamped ee_current_accel_;
 
       // Admittance Pose Servo
       void admittance_pose_servo_setup();
+      rclcpp::Service<StartAdmittancePoseServo>::SharedPtr start_admittance_pose_servo_service_;
       void start_admittance_pose_servo_service_callback(
         const std::shared_ptr<StartAdmittancePoseServo::Request> request,
         std::shared_ptr<StartAdmittancePoseServo::Response> response);
+      rclcpp::Service<Trigger>::SharedPtr stop_admittance_pose_servo_service_;
       void stop_admittance_pose_servo_service_callback(
         const std::shared_ptr<Trigger::Request> request,
         std::shared_ptr<Trigger::Response> response);
-      void admittance_pose_servo_loop_callback_();
-      rclcpp::Service<StartAdmittancePoseServo>::SharedPtr start_admittance_pose_servo_service_;
-      rclcpp::Service<Trigger>::SharedPtr stop_admittance_pose_servo_service_;
+      rclcpp::Subscription<PoseServo>::SharedPtr admittance_pose_servo_subscriber_;
+      void admittance_pose_servo_subscription_callback_(const PoseServo::SharedPtr msg);
       rclcpp::TimerBase::SharedPtr admittance_pose_servo_timer_;
+      void admittance_pose_servo_loop_callback_();
+      double sigmoid(double x, double x_start, double x_end, double y_start, double y_end, double k = 1.00);
+      // State storage and Thread Safety
       std::atomic<bool> admittance_pose_servo_active_{false};
       AdmittancePoseServoConfig admittance_pose_servo_config_;
+      geometry_msgs::msg::Pose admittance_pose_servo_desired_pose_;
       std::mutex admittance_pose_servo_mutex_;
       rclcpp::Time admittance_pose_servo_previous_time_;
+      std::array<double, 6> admittance_x_k_1_ = {0.0};
+      std::array<double, 6> admittance_x_k_2_ = {0.0};
+      std::array<double, 6> admittance_f_k_1_ = {0.0};
+      std::array<double, 6> admittance_f_k_2_ = {0.0};
+      std::array<double, 6> admittance_wrench_offset_ = {0.0};
+
+      // TEMPORARY CODE - DELETE LATER
+      rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr temp_k_publisher_;
+      rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr temp_b_publisher_;
+      rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr temp_m_publisher_;
+      // END TEMPORARY CODE
   };
 
 }  // namespace ur_robot_manager

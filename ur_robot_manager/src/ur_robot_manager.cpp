@@ -38,6 +38,8 @@ namespace ur_robot_manager
     wrench_publisher_setup();
     // EE State Publisher Setup
     ee_state_publisher_setup();
+    // Admittance Pose Servo Setup
+    admittance_pose_servo_setup();
 
     RCLCPP_INFO(this->get_logger(), "Robot Manager is ready!");
   }

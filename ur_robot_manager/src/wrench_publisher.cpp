@@ -19,7 +19,6 @@ namespace ur_robot_manager
   {
     {
       std::lock_guard<std::mutex> lock(wrench_mutex_);
-      previous_wrench_ = current_wrench_;
       current_wrench_ = *msg;
     }
     wrench_publisher_->publish(*msg);
