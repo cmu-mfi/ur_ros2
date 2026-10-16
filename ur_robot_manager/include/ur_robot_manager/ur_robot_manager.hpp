@@ -33,9 +33,6 @@
 #include "geometry_msgs/msg/accel_stamped.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
-// TEMPORARY CODE - DELETE LATER
-#include "std_msgs/msg/float64_multi_array.hpp"
-// END TEMPORARY CODE
 
 namespace ur_robot_manager
 {
