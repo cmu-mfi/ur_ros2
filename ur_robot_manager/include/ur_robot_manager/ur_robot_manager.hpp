@@ -42,13 +42,11 @@ namespace ur_robot_manager
   // Admittance Pose Servo Configuration Struct
   struct AdmittancePoseServoConfig
   {
-    geometry_msgs::msg::Wrench contact_wrench;
+    geometry_msgs::msg::Wrench target_wrench;
     std::array<bool, 6> selection_vector;
     std::array<double, 6> mass;
-    std::array<double, 6> free_damping;
-    std::array<double, 6> contact_damping;
-    std::array<double, 6> free_stiffness;
-    std::array<double, 6> contact_stiffness;
+    std::array<double, 6> damping;
+    std::array<double, 6> stiffness;
     std::array<double, 6> max_velocity;
     std::array<double, 6> max_acceleration;
   };

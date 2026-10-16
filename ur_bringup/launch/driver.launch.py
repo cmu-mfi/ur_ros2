@@ -150,7 +150,7 @@ def launch_setup(context):
     controllers_active = [
         "joint_state_broadcaster",
         "io_and_status_controller",
-        # "force_torque_sensor_broadcaster",
+        "force_torque_sensor_broadcaster",
         "ur_configuration_controller",
         "joint_trajectory_controller",
     ]

@@ -2,7 +2,7 @@
   ros__parameters:
     moveit_servo:
       # General
-      publish_period: 0.01
+      publish_period: 0.002
       # Moveit Config
       move_group_name: $(var tf_prefix)manipulator
       planning_frame: $(var tf_prefix)base_link

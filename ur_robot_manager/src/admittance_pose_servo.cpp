@@ -50,14 +50,12 @@ namespace ur_robot_manager
       response->message = "Admittance Pose Servo already running!";
     } else {
       // Copy parameters into configuration struct
-      admittance_pose_servo_config_.contact_wrench = request->contact_wrench;
+      admittance_pose_servo_config_.target_wrench = request->target_wrench;
       for (size_t i = 0; i < 6; ++i) {
         admittance_pose_servo_config_.selection_vector[i] = request->selection_vector[i];
         admittance_pose_servo_config_.mass[i] = request->mass[i];
-        admittance_pose_servo_config_.free_damping[i] = request->free_damping[i];
-        admittance_pose_servo_config_.contact_damping[i] = request->contact_damping[i];
-        admittance_pose_servo_config_.free_stiffness[i] = request->free_stiffness[i];
-        admittance_pose_servo_config_.contact_stiffness[i] = request->contact_stiffness[i];
+        admittance_pose_servo_config_.damping[i] = request->damping[i];
+        admittance_pose_servo_config_.stiffness[i] = request->stiffness[i];
         admittance_pose_servo_config_.max_velocity[i] = request->max_velocity[i];
         admittance_pose_servo_config_.max_acceleration[i] = request->max_acceleration[i];
       }
@@ -182,12 +180,12 @@ namespace ur_robot_manager
       +(current_wrench.wrench.torque.z - admittance_wrench_offset_[5])
     };
     std::array<double, 6> f_contact = {
-      admittance_pose_servo_config_.contact_wrench.force.x,
-      admittance_pose_servo_config_.contact_wrench.force.y,
-      admittance_pose_servo_config_.contact_wrench.force.z,
-      admittance_pose_servo_config_.contact_wrench.torque.x,
-      admittance_pose_servo_config_.contact_wrench.torque.y,
-      admittance_pose_servo_config_.contact_wrench.torque.z
+      admittance_pose_servo_config_.target_wrench.force.x,
+      admittance_pose_servo_config_.target_wrench.force.y,
+      admittance_pose_servo_config_.target_wrench.force.z,
+      admittance_pose_servo_config_.target_wrench.torque.x,
+      admittance_pose_servo_config_.target_wrench.torque.y,
+      admittance_pose_servo_config_.target_wrench.torque.z
     };
     std::array<double, 6> x_k_0 = {0.0};
     // TEMPORARY CODE - DELETE LATER
@@ -211,17 +209,13 @@ namespace ur_robot_manager
       }
       // Compute Force Error (Deadband to respect target_wrench)
       double f_k_0 = 0.0;
-      if (f_reading[i] > f_contact[i]) {
-        f_k_0 = f_reading[i] - f_contact[i];
-      } else if (f_reading[i] < -f_contact[i]) {
-        f_k_0 = f_reading[i] + f_contact[i];
-      }
+      f_k_0 = f_reading[i] - f_contact[i];
       // Extract constants for readability
       double M = admittance_pose_servo_config_.mass[i];
       double dt2 = dt * dt;
       // Calculate adaptive damping and stiffness
-      double B = sigmoid(std::abs(f_reading[i]), 0.0, f_contact[i], admittance_pose_servo_config_.free_damping[i], admittance_pose_servo_config_.contact_damping[i]);
-      double K = sigmoid(std::abs(f_reading[i]), 0.0, f_contact[i], admittance_pose_servo_config_.free_stiffness[i], admittance_pose_servo_config_.contact_stiffness[i]);
+      double B = admittance_pose_servo_config_.damping[i];
+      double K = admittance_pose_servo_config_.stiffness[i];
       // TEMPORARY CODE - DELETE LATER
       temp_k_msg.data[i] = K;
       temp_b_msg.data[i] = B;
@@ -233,12 +227,21 @@ namespace ur_robot_manager
                    - (4.0 * M - 2.0 * B * dt + K * dt2) * admittance_x_k_2_[i];
       double den = 4.0 * M + 2.0 * B * dt + K * dt2;
       x_k_0[i] = num / den;
-      // Apply velocity constraints
+      // Calculate previous and current unconstrained velocities
+      double previous_vel = (admittance_x_k_1_[i] - admittance_x_k_2_[i]) / dt;
       double current_vel = (x_k_0[i] - admittance_x_k_1_[i]) / dt;
+      // Acceleration constraint
+      double current_accel = (current_vel - previous_vel) / dt;
+      if (std::abs(current_accel) > admittance_pose_servo_config_.max_acceleration[i]) {
+        current_accel = std::copysign(admittance_pose_servo_config_.max_acceleration[i], current_accel);
+        current_vel = previous_vel + current_accel * dt;
+      }
+      //  Velocity constraint
       if (std::abs(current_vel) > admittance_pose_servo_config_.max_velocity[i]) {
         current_vel = std::copysign(admittance_pose_servo_config_.max_velocity[i], current_vel);
-        x_k_0[i] = admittance_x_k_1_[i] + current_vel * dt;
       }
+      // Recompute the actual constrained displacement
+      x_k_0[i] = admittance_x_k_1_[i] + current_vel * dt;
       // Shift history for the next iteration
       admittance_x_k_2_[i] = admittance_x_k_1_[i];
       admittance_x_k_1_[i] = x_k_0[i];

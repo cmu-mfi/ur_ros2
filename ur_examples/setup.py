@@ -23,6 +23,7 @@ setup(
             'pose_goal_example = ur_examples.pose_goal_example:main',
             'pose_servo_example = ur_examples.pose_servo_example:main',
             'admittance_pose_servo_example = ur_examples.admittance_pose_servo_example:main',
+            'admittance_parameter_tuning = ur_examples.admittance_parameter_tuning:main',
             'twist_servo_example = ur_examples.twist_servo_example:main',
             'servo_force = ur_examples.servo_force:main',
             'servo_example = ur_examples.servo_example:main',
