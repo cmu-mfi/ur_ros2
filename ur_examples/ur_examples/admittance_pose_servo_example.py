@@ -24,7 +24,7 @@ class AdmittancePoseServoExample(Node):
         # Parameters
         self.x = 1.0
         self.y = 0.0
-        self.z = 0.41
+        self.z = 0.6
         self.q = quaternion_from_euler(math.radians(160), math.radians(00), math.radians(-90))
         self.frame_id = "ur20_base_link"
         self.target_id = "ur20_tool0"
@@ -64,20 +64,18 @@ class AdmittancePoseServoExample(Node):
 
     def start_admittance_pose_servo(self):
         request = StartAdmittancePoseServo.Request()
-        request.contact_wrench.force.x = 0.0
-        request.contact_wrench.force.y = 0.0
-        request.contact_wrench.force.z = 10.0
-        request.contact_wrench.torque.x = 0.0
-        request.contact_wrench.torque.y = 0.0
-        request.contact_wrench.torque.z = 0.0
-        request.selection_vector = [False, False, True, False, False, False] 
-        request.mass =              [0.0, 0.0,    2.0, 0.0, 0.0, 0.0]                 
-        request.contact_damping =   [0.0, 0.0, 4000.0, 0.0, 0.0, 0.0]
-        request.free_damping =      [0.0, 0.0, 0100.0, 0.0, 0.0, 0.0]
-        request.contact_stiffness = [0.0, 0.0, 0000.0, 0.0, 0.0, 0.0]   
-        request.free_stiffness =    [0.0, 0.0, 1500.0, 0.0, 0.0, 0.0]   
-        request.max_velocity =      [0.0, 0.1,    0.1, 0.0, 0.0, 0.0]        
-        request.max_acceleration =  [0.0, 0.5,    0.5, 0.0, 0.0, 0.0]   
+        request.target_wrench.force.x = 0.0
+        request.target_wrench.force.y = 0.0
+        request.target_wrench.force.z = 10.0
+        request.target_wrench.torque.x = 0.0
+        request.target_wrench.torque.y = 0.0
+        request.target_wrench.torque.z = 0.0
+        request.selection_vector =  [False, False, True, False, False, False] 
+        request.mass =              [0.0, 0.0,    1.0, 0.0, 0.0, 0.0]                 
+        request.damping =           [0.0, 0.0, 6000.0, 0.0, 0.0, 0.0]
+        request.stiffness =         [0.0, 0.0,    0.1, 0.0, 0.0, 0.0]   
+        request.max_velocity =      [0.0, 0.0,    0.2, 0.0, 0.0, 0.0]        
+        request.max_acceleration =  [0.0, 0.0,    3.0, 0.0, 0.0, 0.0]   
         return self.client.call_async(request)
 
     def run_action(self, action_client: ActionClient, goal_msg, show_progress = False):
