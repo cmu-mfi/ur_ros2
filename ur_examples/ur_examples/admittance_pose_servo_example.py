@@ -24,8 +24,8 @@ class AdmittancePoseServoExample(Node):
         # Parameters
         self.x = 1.0
         self.y = 0.0
-        self.z = 0.6
-        self.q = quaternion_from_euler(math.radians(160), math.radians(00), math.radians(-90))
+        self.z = 0.8
+        self.q = quaternion_from_euler(math.radians(180), math.radians(00), math.radians(-90))
         self.frame_id = "ur20_base_link"
         self.target_id = "ur20_tool0"
 
@@ -34,8 +34,8 @@ class AdmittancePoseServoExample(Node):
             position=Point(x=self.x, y=self.y, z=self.z),
             orientation=Quaternion(x=self.q[0], y=self.q[1], z=self.q[2], w=self.q[3])
         )
-        goal_msg.velocity_scaling = 0.4
-        goal_msg.acceleration_scaling = 0.2
+        goal_msg.velocity_scaling = 0.2
+        goal_msg.acceleration_scaling = 0.1
         goal_msg.frame_id = self.frame_id
         goal_msg.target_id = self.target_id
         goal_msg.method = "PTP"
@@ -55,27 +55,32 @@ class AdmittancePoseServoExample(Node):
 
         # 100 Hz publishing rate (0.01 seconds period)
         self.timer_period = 0.01
-        self.timer = self.create_timer(self.timer_period, self.timer_callback)
-
         self.amplitude = 0.10  # Range: -0.1 to 0.1 meters
         self.frequency = 0.10  # 0.5 Hz
         self.start_time = self.get_clock().now().nanoseconds / 1e9
+        # self.timer = self.create_timer(self.timer_period, self.timer_callback)
         self.get_logger().info("Starting streaming")
 
     def start_admittance_pose_servo(self):
         request = StartAdmittancePoseServo.Request()
+        # Target Force and Torque
         request.target_wrench.force.x = 0.0
         request.target_wrench.force.y = 0.0
-        request.target_wrench.force.z = 10.0
+        request.target_wrench.force.z = 0.0
         request.target_wrench.torque.x = 0.0
         request.target_wrench.torque.y = 0.0
         request.target_wrench.torque.z = 0.0
-        request.selection_vector =  [False, False, True, False, False, False] 
-        request.mass =              [0.0, 0.0,    1.0, 0.0, 0.0, 0.0]                 
-        request.damping =           [0.0, 0.0, 6000.0, 0.0, 0.0, 0.0]
-        request.stiffness =         [0.0, 0.0,    0.1, 0.0, 0.0, 0.0]   
-        request.max_velocity =      [0.0, 0.0,    0.2, 0.0, 0.0, 0.0]        
-        request.max_acceleration =  [0.0, 0.0,    3.0, 0.0, 0.0, 0.0]   
+        request.selection_vector =  [True, True, True, False, False, False] 
+        # Virtual Mass (Linear: kg | Rotational: kg·m²)
+        request.mass = [40.0, 40.0, 40.0, 0.5, 0.5, 0.5]
+        # Virtual Damping (Linear: N·s/m | Rotational: N·m·s/rad)
+        request.damping = [300.0, 300.0, 300.0, 2.0, 2.0, 2.0]
+        # Virtual Stiffness (Linear: N/m | Rotational: N·m/rad)
+        request.stiffness = [200.0, 200.0, 200.0, 20.0, 20.0, 20.0]
+        # request.stiffness = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        # Velocity Limits (Linear: m/s | Rotational: rad/s)
+        request.max_velocity = [0.1, 0.1, 0.1, 0.5, 0.5, 0.5]
+        # request.max_velocity = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         return self.client.call_async(request)
 
     def run_action(self, action_client: ActionClient, goal_msg, show_progress = False):

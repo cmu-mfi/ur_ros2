@@ -52,7 +52,6 @@ namespace ur_robot_manager
         admittance_pose_servo_config_.damping[i] = request->damping[i];
         admittance_pose_servo_config_.stiffness[i] = request->stiffness[i];
         admittance_pose_servo_config_.max_velocity[i] = request->max_velocity[i];
-        admittance_pose_servo_config_.max_acceleration[i] = request->max_acceleration[i];
       }
       {
         std::lock_guard<std::mutex> ee_lock(ee_state_mutex_);
@@ -76,11 +75,11 @@ namespace ur_robot_manager
           std::lock_guard<std::mutex> lock(wrench_mutex_);
           temp_wrench = current_wrench_;
         }
-        offset_sum[0] += temp_wrench.wrench.force.x;
-        offset_sum[1] += temp_wrench.wrench.force.y;
+        offset_sum[0] += temp_wrench.wrench.force.y;
+        offset_sum[1] += temp_wrench.wrench.force.x;
         offset_sum[2] += temp_wrench.wrench.force.z;
-        offset_sum[3] += temp_wrench.wrench.torque.x;
-        offset_sum[4] += temp_wrench.wrench.torque.y;
+        offset_sum[3] += temp_wrench.wrench.torque.y;
+        offset_sum[4] += temp_wrench.wrench.torque.x;
         offset_sum[5] += temp_wrench.wrench.torque.z;
         
         tare_rate.sleep();
@@ -167,12 +166,12 @@ namespace ur_robot_manager
     }
     // Admittance Control Math Algorithm
     std::array<double, 6> f_reading = {
-      -(current_wrench.wrench.force.x - admittance_wrench_offset_[0]),
-      -(current_wrench.wrench.force.y - admittance_wrench_offset_[1]),
+      -(current_wrench.wrench.force.y - admittance_wrench_offset_[0]),
+      -(current_wrench.wrench.force.x - admittance_wrench_offset_[1]),
       -(current_wrench.wrench.force.z - admittance_wrench_offset_[2]),
-      +(current_wrench.wrench.torque.x - admittance_wrench_offset_[3]),
-      +(current_wrench.wrench.torque.y - admittance_wrench_offset_[4]),
-      +(current_wrench.wrench.torque.z - admittance_wrench_offset_[5])
+      -(current_wrench.wrench.torque.y - admittance_wrench_offset_[3]),
+      -(current_wrench.wrench.torque.x - admittance_wrench_offset_[4]),
+      -(current_wrench.wrench.torque.z - admittance_wrench_offset_[5])
     };
     std::array<double, 6> f_contact = {
       admittance_pose_servo_config_.target_wrench.force.x,
@@ -210,16 +209,9 @@ namespace ur_robot_manager
       double den = 4.0 * M + 2.0 * B * dt + K * dt2;
       x_k_0[i] = num / den;
       // Calculate previous and current unconstrained velocities
-      double previous_vel = (admittance_x_k_1_[i] - admittance_x_k_2_[i]) / dt;
       double current_vel = (x_k_0[i] - admittance_x_k_1_[i]) / dt;
-      // Acceleration constraint
-      double current_accel = (current_vel - previous_vel) / dt;
-      if (std::abs(current_accel) > admittance_pose_servo_config_.max_acceleration[i]) {
-        current_accel = std::copysign(admittance_pose_servo_config_.max_acceleration[i], current_accel);
-        current_vel = previous_vel + current_accel * dt;
-      }
       //  Velocity constraint
-      if (std::abs(current_vel) > admittance_pose_servo_config_.max_velocity[i]) {
+      if (std::abs(current_vel) > admittance_pose_servo_config_.max_velocity[i] && admittance_pose_servo_config_.max_velocity[i] != 0.0) {
         current_vel = std::copysign(admittance_pose_servo_config_.max_velocity[i], current_vel);
       }
       // Recompute the actual constrained displacement

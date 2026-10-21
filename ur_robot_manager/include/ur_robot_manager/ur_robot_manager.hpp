@@ -45,7 +45,6 @@ namespace ur_robot_manager
     std::array<double, 6> damping;
     std::array<double, 6> stiffness;
     std::array<double, 6> max_velocity;
-    std::array<double, 6> max_acceleration;
   };
 
   class UrRobotManager : public rclcpp::Node {
