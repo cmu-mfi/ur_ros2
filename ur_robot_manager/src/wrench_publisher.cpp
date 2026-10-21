@@ -1,3 +1,4 @@
+#include <cmath>
 #include "ur_robot_manager/ur_robot_manager.hpp"
 
 namespace ur_robot_manager
@@ -17,6 +18,15 @@ namespace ur_robot_manager
   // --- Wrench Publisher - Subscription Callback --- ///
   void UrRobotManager::ur_wrench_subscription_callback_(const WrenchStamped::SharedPtr msg) 
   {
+    const auto & f = msg->wrench.force;
+    const auto & t = msg->wrench.torque;
+    // Check if any force or torque component is NaN
+    bool has_nan = std::isnan(f.x) || std::isnan(f.y) || std::isnan(f.z) ||
+                   std::isnan(t.x) || std::isnan(t.y) || std::isnan(t.z);
+    if (has_nan) {
+      // Skip saving (and publishing) invalid data
+      return; 
+    }
     {
       std::lock_guard<std::mutex> lock(wrench_mutex_);
       current_wrench_ = *msg;
