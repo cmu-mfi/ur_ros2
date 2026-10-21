@@ -15,10 +15,8 @@ set(DEPENDENCIES
   rclcpp
   rclcpp_action
   tf2_ros
-  tf2_eigen
   robot_manager_interfaces
   std_srvs
-  std_msgs
   geometry_msgs
   ur_msgs
 )

@@ -14,7 +14,6 @@
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
-#include <tf2_eigen/tf2_eigen.hpp>
 // Messages
 #include "robot_manager_interfaces/action/joint_goal.hpp"
 #include "robot_manager_interfaces/action/pose_goal.hpp"
@@ -29,7 +28,6 @@
 #include "ur_msgs/srv/set_io.hpp"
 #include "trajectory_msgs/msg/joint_trajectory.hpp"
 #include "geometry_msgs/msg/wrench_stamped.hpp"
-#include "geometry_msgs/msg/twist_stamped.hpp"
 #include "geometry_msgs/msg/accel_stamped.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
@@ -87,8 +85,6 @@ namespace ur_robot_manager
       void moveit_setup();
       std::string moveit_planning_group_;
       std::unique_ptr<moveit::planning_interface::MoveGroupInterface> moveit_move_group_;
-      std::unique_ptr<moveit::planning_interface::MoveGroupInterface::Plan> moveit_current_plan_;
-      std::unique_ptr<moveit::planning_interface::PlanningSceneInterface> moveit_planning_scene_interface_;
 
       // Joint Goal Action
       void joint_goal_setup();
@@ -171,9 +167,6 @@ namespace ur_robot_manager
       // EE State Publisher
       void ee_state_publisher_setup();
       void ee_state_publisher_loop_callback_();
-      geometry_msgs::msg::PoseStamped get_pose_in_base_frame(geometry_msgs::msg::PoseStamped tool_pose);
-      std::string ee_link_;
-      const moveit::core::JointModelGroup * ee_joint_model_group_;
       rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr ee_pose_pub_;
       rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr ee_twist_pub_;
       rclcpp::Publisher<geometry_msgs::msg::AccelStamped>::SharedPtr ee_accel_pub_;
@@ -198,7 +191,6 @@ namespace ur_robot_manager
       void admittance_pose_servo_subscription_callback_(const PoseServo::SharedPtr msg);
       rclcpp::TimerBase::SharedPtr admittance_pose_servo_timer_;
       void admittance_pose_servo_loop_callback_();
-      double sigmoid(double x, double x_start, double x_end, double y_start, double y_end, double k = 1.00);
       // State storage and Thread Safety
       std::atomic<bool> admittance_pose_servo_active_{false};
       AdmittancePoseServoConfig admittance_pose_servo_config_;

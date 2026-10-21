@@ -7,7 +7,6 @@ namespace ur_robot_manager
     // moveit setup
     moveit::planning_interface::MoveGroupInterface::Options options(moveit_planning_group_, "robot_description", "/"+ns_);
     moveit_move_group_ = std::make_unique<moveit::planning_interface::MoveGroupInterface>(shared_from_this(), options);
-    moveit_planning_scene_interface_ = std::make_unique<moveit::planning_interface::PlanningSceneInterface>();
     // default settings
     moveit_move_group_->setPlanningTime(5.0);
     moveit_move_group_->setNumPlanningAttempts(10);

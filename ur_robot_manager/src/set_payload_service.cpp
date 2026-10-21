@@ -62,4 +62,4 @@ namespace ur_robot_manager
       response->message = "Service call timed out. Check if io_and_status_controller is active.";
     }
   }
-}  // namespace ur_robot_managr
+}  // namespace ur_robot_manager

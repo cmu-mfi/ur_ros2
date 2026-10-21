@@ -149,11 +149,6 @@ namespace ur_robot_manager
       return;
     }
     // Gather current state variables (Pose, Wrench)
-    geometry_msgs::msg::PoseStamped current_pose;
-    {
-      std::lock_guard<std::mutex> lock(ee_state_mutex_);
-      current_pose = ee_current_pose_;
-    }
     geometry_msgs::msg::WrenchStamped current_wrench;
     {
       std::lock_guard<std::mutex> lock(wrench_mutex_);
@@ -240,21 +235,6 @@ namespace ur_robot_manager
     pose_servo_msg->target_id = tf_prefix_ + "tool0";
     pose_servo_msg->target_pose = commanded_pose;
     pose_servo_subscription_callback_(pose_servo_msg);
-  }
-
-  // --- Sigmoid Helper Function ///
-  double UrRobotManager::sigmoid(double x, double x_start, double x_end, double y_start, double y_end, double k) {
-    if (x_start == x_end) {
-      return (x < x_start) ? y_start : y_end;
-    }
-    // Normalize x into normalized progress t in range [0, 1]
-    double t = (x - x_start) / (x_end - x_start);
-    // Map progress [0, 1] to symmetric logistic range [-k, +k]
-    double z = (t - 0.5) * (2.0 * k);
-    // Compute standard logistic sigmoid: 1 / (1 + e^-z)
-    double sig = 1.0 / (1.0 + std::exp(-z));
-    // Map output range from [0, 1] to [y_start, y_end]
-    return y_start + (y_end - y_start) * sig;
   }
 
 }  // namespace ur_robot_manager

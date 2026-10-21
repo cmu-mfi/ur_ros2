@@ -68,4 +68,4 @@ namespace ur_robot_manager
       response->message = "Execution failed or was cancelled.";
     }
   }
-}  // namespace ur_robot_managr
+}  // namespace ur_robot_manager

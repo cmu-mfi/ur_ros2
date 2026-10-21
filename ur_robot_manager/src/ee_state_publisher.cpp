@@ -8,58 +8,54 @@ namespace ur_robot_manager {
     ee_pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("ee_pose", 10);
     ee_twist_pub_ = this->create_publisher<geometry_msgs::msg::TwistStamped>("ee_twist", 10);
     ee_accel_pub_ = this->create_publisher<geometry_msgs::msg::AccelStamped>("ee_accel", 10);
-
-    // Setup EE Link
-    ee_joint_model_group_ = moveit_move_group_->getRobotModel()->getJointModelGroup(moveit_planning_group_);
-    ee_link_ = moveit_move_group_->getEndEffectorLink();
-    if (ee_link_.empty()) {
-      const auto &links = ee_joint_model_group_->getLinkModelNames();
-      ee_link_ = links.back();
-      RCLCPP_WARN(this->get_logger(), "[EE State Publisher] No EE link configured. Using last link: %s", ee_link_.c_str());
+    
+    // Setup EE Link logging check
+    auto* joint_model_group = moveit_move_group_->getRobotModel()->getJointModelGroup(moveit_planning_group_);
+    std::string ee_link = moveit_move_group_->getEndEffectorLink();
+    if (ee_link.empty()) {
+      const auto &links = joint_model_group->getLinkModelNames();
+      ee_link = links.back();
+      RCLCPP_WARN(this->get_logger(), "[EE State Publisher] No EE link configured. Using last link: %s", ee_link.c_str());
     }
-
+    
     moveit_move_group_->startStateMonitor();
     moveit_move_group_->setPoseReferenceFrame(tf_prefix_ + "base_link");
-
-    // Wait until TF can provide the transform without relying on MoveIt's noisy state monitor 
+    
     RCLCPP_INFO(this->get_logger(), "[EE State Publisher] Waiting for current robot state...");
     
     while (rclcpp::ok()) {
       if (tf_buffer_->canTransform(tf_prefix_ + "base_link", tf_prefix_ + "tool0", tf2::TimePointZero)) {
         try {
-          // Grab the initial pose directly via TF to bypass the MoveIt uninitialized state error
-          geometry_msgs::msg::TransformStamped tf_msg = 
-             tf_buffer_->lookupTransform(tf_prefix_ + "base_link", tf_prefix_ + "tool0", tf2::TimePointZero);
-          
+          geometry_msgs::msg::TransformStamped tf_msg =
+              tf_buffer_->lookupTransform(tf_prefix_ + "base_link", tf_prefix_ + "tool0", tf2::TimePointZero);
+                     
           geometry_msgs::msg::PoseStamped initial_pose;
           initial_pose.header = tf_msg.header;
           initial_pose.pose.position.x = tf_msg.transform.translation.x;
           initial_pose.pose.position.y = tf_msg.transform.translation.y;
           initial_pose.pose.position.z = tf_msg.transform.translation.z;
           initial_pose.pose.orientation = tf_msg.transform.rotation;
-
-          // Check if we got valid orientation data 
+          
           if (initial_pose.pose.orientation.w != 0.0) {
             std::lock_guard<std::mutex> lock(ee_state_mutex_);
             ee_current_pose_ = initial_pose;
             break;
           }
         } catch (const tf2::TransformException &) {
-          // Ignore transient TF exceptions and keep trying
+          // Ignore transient TF exceptions
         }
       }
       rclcpp::sleep_for(std::chrono::milliseconds(100));
     }
-
-    RCLCPP_INFO(this->get_logger(), "[EE State Publisher] Publishing EE state for link: %s", ee_link_.c_str());
-
-    // Original loop was 200Hz, translating to a 5ms timer
+    
+    RCLCPP_INFO(this->get_logger(), "[EE State Publisher] Publishing EE state for link: %s", ee_link.c_str());
+    
     ee_state_timer_ = this->create_wall_timer(
         std::chrono::milliseconds(5),
         std::bind(&UrRobotManager::ee_state_publisher_loop_callback_, this),
         ee_state_cb_group_
-        );
-  }
+    );
+}
 
   // --- EE State Publisher - Loop Callback --- ///
   void UrRobotManager::ee_state_publisher_loop_callback_() {
