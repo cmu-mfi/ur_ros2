@@ -11,10 +11,11 @@
       # Command in
       command_in_type: "speed_units"
       joint_topic: joint_states
+      # MOVEIT SERVO BUG: The actual velocity limits are much lower
       scale:
-        linear: 5.0 # Max Linear Velocity in m/s
-        rotational: 5.0 # Max Angular Velocity in rad/s
-        joint: 2.00
+        linear: 100.0 # Max Linear Velocity in m/s
+        rotational: 100.0 # Max Angular Velocity in rad/s
+        joint: 100.0
       # Command out
       command_out_type: trajectory_msgs/JointTrajectory
       command_out_topic: joint_trajectory_controller/joint_trajectory

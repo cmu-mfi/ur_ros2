@@ -89,17 +89,14 @@ def launch_setup(context):
     with open(joint_limits_path, 'r') as file:
         joint_limits_yaml = yaml.safe_load(file)
     raw_limits = joint_limits_yaml.get('joint_limits', {})
-    prefixed_limits = {
-            f"{tf_prefix}{joint_name}": limits 
-            for joint_name, limits in raw_limits.items()
-            }
-    joint_limits = {'robot_description_planning': 
-                    {
-                        "default_velocity_scaling_factor": 1.0,
-                        "default_acceleration_scaling_factor": 1.0,
-                        "joint_limits": prefixed_limits,
-                        }
-                    }
+    prefixed_limits = {}
+    for joint_name, limits in raw_limits.items():
+        # Check if max_velocity exists for the joint and multiply it by 10
+        # This is because of a moveit servo bug
+        if 'max_velocity' in limits:
+            limits['max_velocity'] = limits['max_velocity'] * 10.0
+        prefixed_limits[f"{tf_prefix}{joint_name}"] = limits
+    joint_limits = {'robot_description_planning': {"joint_limits": prefixed_limits}}
 
     # Planning Pipeline
     pilz_config_path = os.path.join(get_package_share_directory(pkg_prefix+"bringup"), 'config', 'pilz_industrial_motion_planner_planning.yaml')

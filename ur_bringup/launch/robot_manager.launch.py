@@ -84,10 +84,13 @@ def launch_setup(context):
     with open(joint_limits_path, 'r') as file:
         joint_limits_yaml = yaml.safe_load(file)
     raw_limits = joint_limits_yaml.get('joint_limits', {})
-    prefixed_limits = {
-            f"{tf_prefix}{joint_name}": limits 
-            for joint_name, limits in raw_limits.items()
-            }
+    prefixed_limits = {}
+    for joint_name, limits in raw_limits.items():
+        # Check if max_velocity exists for the joint and multiply it by 10
+        # This is because of a moveit servo bug
+        if 'max_velocity' in limits:
+            limits['max_velocity'] = limits['max_velocity'] * 10.0
+        prefixed_limits[f"{tf_prefix}{joint_name}"] = limits
     joint_limits = {'robot_description_planning': {"joint_limits": prefixed_limits}}
 
     # Planning Scene Parameters
