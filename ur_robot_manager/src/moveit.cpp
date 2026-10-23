@@ -1,7 +1,6 @@
 #include "ur_robot_manager/ur_robot_manager.hpp"
 
-namespace ur_robot_manager
-{
+namespace ur_robot_manager {
   // --- MoveIt - Setup --- ///
   void UrRobotManager::moveit_setup() {
     // moveit setup
@@ -13,4 +12,5 @@ namespace ur_robot_manager
     moveit_move_group_->setPlanningPipelineId("pilz_industrial_motion_planner");
     moveit_move_group_->setPlannerId("PTP");
   }
+
 }  // namespace ur_robot_manager

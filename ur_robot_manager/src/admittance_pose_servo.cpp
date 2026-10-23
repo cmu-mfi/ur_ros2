@@ -1,10 +1,8 @@
 #include "ur_robot_manager/ur_robot_manager.hpp"
 
-namespace ur_robot_manager
-{
+namespace ur_robot_manager {
   // --- Admittance Pose Servo - Setup --- ///
-  void UrRobotManager::admittance_pose_servo_setup()
-  {
+  void UrRobotManager::admittance_pose_servo_setup() {
     // Start Admittance Pose Servo Service
     start_admittance_pose_servo_service_ = this->create_service<StartAdmittancePoseServo>(
         "start_admittance_pose_servo",
@@ -81,7 +79,6 @@ namespace ur_robot_manager
         offset_sum[3] += temp_wrench.wrench.torque.y;
         offset_sum[4] += temp_wrench.wrench.torque.x;
         offset_sum[5] += temp_wrench.wrench.torque.z;
-        
         tare_rate.sleep();
       }
       for (size_t i = 0; i < 6; ++i) {
@@ -121,7 +118,6 @@ namespace ur_robot_manager
       RCLCPP_ERROR(this->get_logger(), "[Admittance Pose Servo] TF Verification Failed (tool0): %s", ex.what());
       return;
     }
-
     geometry_msgs::msg::Pose base_link_tool0_pose;
     try {
       base_link_tool0_pose = transform_pose_to_base_link_frame(tool0_pose, reference_frame);
@@ -129,7 +125,6 @@ namespace ur_robot_manager
       RCLCPP_ERROR(this->get_logger(), "[Admittance Pose Servo] TF Verification Failed (base_link): %s", ex.what());
       return;
     }
-
     std::lock_guard<std::mutex> lock(admittance_pose_servo_mutex_);
     admittance_pose_servo_desired_pose_ = base_link_tool0_pose;
   }

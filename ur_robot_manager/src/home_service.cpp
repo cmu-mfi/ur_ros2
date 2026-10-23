@@ -1,7 +1,6 @@
 #include "ur_robot_manager/ur_robot_manager.hpp"
 
-namespace ur_robot_manager
-{
+namespace ur_robot_manager {
   // --- Home Service - Setup --- ///
   void UrRobotManager::home_service_setup() {
     // Home Service
@@ -47,4 +46,5 @@ namespace ur_robot_manager
       response->message = "Execution failed or was cancelled.";
     }
   }
+
 }  // namespace ur_robot_manager

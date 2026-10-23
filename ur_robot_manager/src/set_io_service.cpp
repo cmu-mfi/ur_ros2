@@ -1,7 +1,6 @@
 #include "ur_robot_manager/ur_robot_manager.hpp"
 
-namespace ur_robot_manager
-{
+namespace ur_robot_manager {
   // --- Set IO Service - Setup --- ///
   void UrRobotManager::set_io_service_setup() {
     // Set Io Service
@@ -29,7 +28,7 @@ namespace ur_robot_manager
     if (pin < 0 || pin > 7) {
       RCLCPP_ERROR(this->get_logger(), "[Set Io Service] Invalid Pin: %d. Needs to be in between 0 and 7.", pin);
       response->success = false;
-      response->message = "Io update failed: Invalid pin.";
+      response->message = "Io update failed: Invalid pin range (0-7 allowed).";
       return;
     }
     if (state != 0 && state != 1) {
@@ -67,4 +66,5 @@ namespace ur_robot_manager
       response->message = "Service call timed out. Check if io_and_status_controller is active.";
     }
   }
+
 }  // namespace ur_robot_manager

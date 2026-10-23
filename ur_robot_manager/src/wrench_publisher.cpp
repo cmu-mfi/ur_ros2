@@ -1,8 +1,7 @@
 #include <cmath>
 #include "ur_robot_manager/ur_robot_manager.hpp"
 
-namespace ur_robot_manager
-{
+namespace ur_robot_manager {
   // --- Wrench Publisher - Setup --- ///
   void UrRobotManager::wrench_publisher_setup() {
     // UR Wrench Subscription
@@ -33,4 +32,5 @@ namespace ur_robot_manager
     }
     wrench_publisher_->publish(*msg);
   }
+
 }  // namespace ur_robot_manager

@@ -6,7 +6,7 @@ namespace ur_robot_manager
     ns_ = this->get_parameter("ns").as_string();
     tf_prefix_ = this->get_parameter("tf_prefix").as_string();
     moveit_planning_group_ = tf_prefix_ + "manipulator"; 
-    RCLCPP_INFO(this->get_logger(), "Initilizing Robot Manager with namespace: /%s and planning group: %s", ns_.c_str(), moveit_planning_group_.c_str());
+    RCLCPP_INFO(this->get_logger(), "Initilizing UR Robot Manager with namespace: /%s and planning group: %s", ns_.c_str(), moveit_planning_group_.c_str());
   }
 
   // --- Setup --- ///
@@ -41,7 +41,7 @@ namespace ur_robot_manager
     // Admittance Pose Servo Setup
     admittance_pose_servo_setup();
 
-    RCLCPP_INFO(this->get_logger(), "Robot Manager is ready!");
+    RCLCPP_INFO(this->get_logger(), "UR Robot Manager is ready!");
   }
 
 }  // namespace ur_robot_manager

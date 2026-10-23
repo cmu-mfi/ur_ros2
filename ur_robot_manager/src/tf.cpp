@@ -1,8 +1,6 @@
 #include "ur_robot_manager/ur_robot_manager.hpp"
 
-namespace ur_robot_manager
-{
-
+namespace ur_robot_manager{
   // --- Helper Function - Transform Pose to Tool0 Frame --- ///
   geometry_msgs::msg::Pose UrRobotManager::transform_pose_to_tool0_frame(
       const geometry_msgs::msg::Pose& pose,
@@ -21,7 +19,6 @@ namespace ur_robot_manager
     std::string current_frame = input_frame;
     std::string next_parent;
     tf2::TimePoint time = tf2::TimePointZero;
-
     while (tf_buffer_->_getParent(current_frame, time, next_parent)) {
       if (next_parent == tool0_frame) {
         is_child = true;
@@ -29,12 +26,10 @@ namespace ur_robot_manager
       }
       current_frame = next_parent;
     }
-
     if (!is_child) {
       RCLCPP_ERROR(this->get_logger(), "[TF] Verification Failed: Target Frame '%s' is not a Child of '%s'", input_frame.c_str(), tool0_frame.c_str());
       throw tf2::TransformException("Target Frame '" + input_frame + "' is not a Child of '" + tool0_frame + "'");
     }
-
     // Transform pose to tool0 frame
     try {
       geometry_msgs::msg::TransformStamped tool0_in_target_msg =
@@ -70,7 +65,6 @@ namespace ur_robot_manager
       pose_in.header.frame_id = input_frame;
       pose_in.header.stamp = rclcpp::Time(0);
       pose_in.pose = pose;
-
       geometry_msgs::msg::PoseStamped pose_out = tf_buffer_->transform(
           pose_in,
           base_link_frame,

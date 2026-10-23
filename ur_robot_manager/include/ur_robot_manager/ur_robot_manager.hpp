@@ -32,11 +32,10 @@
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
 
-namespace ur_robot_manager
-{
+namespace ur_robot_manager {
+
   // Admittance Pose Servo Configuration Struct
-  struct AdmittancePoseServoConfig
-  {
+  struct AdmittancePoseServoConfig {
     geometry_msgs::msg::Wrench target_wrench;
     std::array<bool, 6> selection_vector;
     std::array<double, 6> mass;

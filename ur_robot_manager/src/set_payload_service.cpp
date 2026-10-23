@@ -1,7 +1,6 @@
 #include "ur_robot_manager/ur_robot_manager.hpp"
 
-namespace ur_robot_manager
-{
+namespace ur_robot_manager {
   // --- Set Payload Service - Setup --- ///
   void UrRobotManager::set_payload_service_setup() {
     // Set Payload Service
@@ -62,4 +61,5 @@ namespace ur_robot_manager
       response->message = "Service call timed out. Check if io_and_status_controller is active.";
     }
   }
+
 }  // namespace ur_robot_manager

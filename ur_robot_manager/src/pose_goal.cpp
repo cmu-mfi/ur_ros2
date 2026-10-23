@@ -1,7 +1,7 @@
 #include "ur_robot_manager/ur_robot_manager.hpp"
 
-namespace ur_robot_manager
-{
+namespace ur_robot_manager {
+
   // --- Pose Goal - Setup --- ///
   void UrRobotManager::pose_goal_setup() {
     // PoseGoal Action Server
@@ -61,12 +61,10 @@ namespace ur_robot_manager
   void UrRobotManager::pose_goal_handle_execution(const std::shared_ptr<PoseGoalHandle> goal_handle) {
     auto result = std::make_shared<PoseGoal::Result>();
     auto goal = goal_handle->get_goal();
-
     // Determine target and reference frames
     std::string tool0_frame = moveit_move_group_->getEndEffectorLink();
     std::string reference_frame = goal->frame_id.empty() ? moveit_move_group_->getPlanningFrame() : goal->frame_id;
     geometry_msgs::msg::Pose goal_pose;
-
     try {
       goal_pose = transform_pose_to_tool0_frame(goal->target_pose, goal->target_id);
     } catch (const tf2::TransformException & ex) {
@@ -81,7 +79,6 @@ namespace ur_robot_manager
     moveit_move_group_->clearPoseTargets();
     moveit_move_group_->clearPathConstraints();
     moveit_move_group_->clearTrajectoryConstraints();
-
     // Plan
     moveit_move_group_->setPoseReferenceFrame(reference_frame);
     moveit_move_group_->setPoseTarget(goal_pose, tool0_frame);
@@ -100,12 +97,10 @@ namespace ur_robot_manager
       return;
     }
     RCLCPP_INFO(this->get_logger(), "[PoseGoal] Planning successful. Executing at %d%% speed...", (int)(goal->velocity_scaling * 100));
-
     // Execution
     auto exec_future = std::async(std::launch::async, [this, &my_plan]() {
         return moveit_move_group_->execute(my_plan);
         });
-
     // Feedback 
     double total_distance = calculate_cartesian_distance(start_pose.pose.position, goal_pose.position);
     rclcpp::Rate loop_rate(20);
@@ -134,7 +129,6 @@ namespace ur_robot_manager
       goal_handle->publish_feedback(feedback);
       loop_rate.sleep();
     }
-
     // Finish Execution
     auto exec_status = exec_future.get();
     if (exec_status == moveit::core::MoveItErrorCode::SUCCESS) {
@@ -156,6 +150,7 @@ namespace ur_robot_manager
 
   // --- Helper Function - Calculate Cartesion Distance --- ///
   double UrRobotManager::calculate_cartesian_distance(const geometry_msgs::msg::Point& p1, const geometry_msgs::msg::Point& p2) {
-      return std::sqrt(std::pow(p1.x - p2.x, 2) + std::pow(p1.y - p2.y, 2) + std::pow(p1.z - p2.z, 2));
-    };
+    return std::sqrt(std::pow(p1.x - p2.x, 2) + std::pow(p1.y - p2.y, 2) + std::pow(p1.z - p2.z, 2));
+  };
+
 }  // namespace ur_robot_manager
