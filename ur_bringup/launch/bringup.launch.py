@@ -1,18 +1,20 @@
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction, IncludeLaunchDescription 
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import PathJoinSubstitution
 from launch_ros.substitutions import FindPackageShare
+from launch.actions import DeclareLaunchArgument, SetLaunchConfiguration, OpaqueFunction, IncludeLaunchDescription
+from launch_ros.substitutions import FindPackageShare
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression 
 
 def launch_setup(context):
     # Load parameters
-    log_level = context.launch_configurations['log_level']
-    ns = context.launch_configurations['ns']
-    model = context.launch_configurations['model']
-    ip = context.launch_configurations['ip']
-    use_mock_hardware = context.launch_configurations["use_mock_hardware"]
-    launch_rviz = context.launch_configurations["launch_rviz"]
-    launch_servo = context.launch_configurations["launch_servo"]
+    log_level           = str(context.launch_configurations['log_level']).lower()
+    ns                  = str(context.launch_configurations['ns'])
+    tf_prefix           = str(context.launch_configurations['tf_prefix'])
+    model               = str(context.launch_configurations['model'])
+    ip                  = str(context.launch_configurations['ip'])
+    use_mock_hardware   = str(context.launch_configurations["use_mock_hardware"]).lower()
+    launch_rviz         = str(context.launch_configurations["launch_rviz"]).lower()
+    launch_servo        = str(context.launch_configurations["launch_servo"]).lower()
 
     # print parameters
     print("")
@@ -23,8 +25,9 @@ def launch_setup(context):
     else:
         print(" ns:                  " + "/" + ns)
     print(" model:               " + model)
-    print(" ip:                  " + ip)
     print(" use_mock_hardware:   " + use_mock_hardware)
+    if use_mock_hardware == "false":
+        print(" ip:                  " + ip)
     print(" launch_servo:        " + launch_servo)
     print(" launch_rviz:         " + launch_rviz)
     print("")
@@ -86,6 +89,9 @@ def generate_launch_description():
                 default_value='',
                 description='namespace of the robot (used as prefix, so needed if running multiple robots)'
                 )
+            )
+    declared_arguments.append(
+            SetLaunchConfiguration('tf_prefix', PythonExpression(["'", LaunchConfiguration('ns'), "' + '_' if '", LaunchConfiguration('ns'), "' else ''"]))
             )
     declared_arguments.append(
             DeclareLaunchArgument(

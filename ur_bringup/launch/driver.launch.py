@@ -9,13 +9,13 @@ from launch.conditions import UnlessCondition
 
 def launch_setup(context):
     # Load parameters
-    log_level = context.launch_configurations['log_level']
-    ns = context.launch_configurations['ns']
-    tf_prefix = context.launch_configurations['tf_prefix']
-    model = context.launch_configurations['model']
-    ip = context.launch_configurations['ip']
-    use_mock_hardware = context.launch_configurations['use_mock_hardware']
-    kinematics_params_file = context.launch_configurations['kinematics_params_file']
+    log_level               = str(context.launch_configurations['log_level']).lower()
+    ns                      = str(context.launch_configurations['ns'])
+    model                   = str(context.launch_configurations['model'])
+    ip                      = str(context.launch_configurations['ip'])
+    use_mock_hardware       = str(context.launch_configurations["use_mock_hardware"]).lower()
+    tf_prefix               = str(context.launch_configurations['tf_prefix'])
+    kinematics_params_file  = str(context.launch_configurations['kinematics_params_file'])
 
     # print parameters
     print("")

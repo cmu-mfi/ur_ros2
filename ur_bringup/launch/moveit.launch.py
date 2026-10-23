@@ -12,13 +12,13 @@ from launch_ros.parameter_descriptions import ParameterValue
 
 def launch_setup(context):
     # Load parameters
-    log_level = context.launch_configurations['log_level']
-    ns = context.launch_configurations['ns']
-    tf_prefix = context.launch_configurations['tf_prefix']
-    model = context.launch_configurations['model']
-    launch_servo = context.launch_configurations['launch_servo']
-    launch_rviz = context.launch_configurations['launch_rviz']
-    kinematics_params_file = context.launch_configurations['kinematics_params_file']
+    log_level               = str(context.launch_configurations['log_level']).lower()
+    ns                      = str(context.launch_configurations['ns'])
+    model                   = str(context.launch_configurations['model'])
+    launch_rviz             = str(context.launch_configurations["launch_rviz"]).lower()
+    launch_servo            = str(context.launch_configurations["launch_servo"]).lower()
+    tf_prefix               = str(context.launch_configurations['tf_prefix'])
+    kinematics_params_file  = str(context.launch_configurations['kinematics_params_file'])
 
     # print parameters
     print("")

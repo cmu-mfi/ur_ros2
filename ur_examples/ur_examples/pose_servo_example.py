@@ -12,8 +12,7 @@ from robot_manager_interfaces.msg import PoseServo
 class PoseServoExample(Node):
     def __init__(self):
         super().__init__('pose_servo_example')
-
-        self.declare_parameter('ns', 'ur20')
+        self.declare_parameter('ns', '')
         self.ns = str(self.get_parameter("ns").value) + "/"
 
         self.publisher_ = self.create_publisher(
@@ -23,15 +22,15 @@ class PoseServoExample(Node):
         self.pose_goal_client.wait_for_server()
 
         goal_msg = PoseGoal.Goal()
-        self.q = quaternion_from_euler(math.radians(0), math.radians(0), math.radians(-90))
+        self.q = quaternion_from_euler(math.radians(180), math.radians(0), math.radians(-90))
         goal_msg.target_pose = Pose(
-            position=Point(x=0.0, y=0.0, z=0.5),
+            position=Point(x=0.8, y=0.0, z=0.5),
             orientation=Quaternion(x=self.q[0], y=self.q[1], z=self.q[2], w=self.q[3])
         )
-        goal_msg.velocity_scaling = 0.4
-        goal_msg.acceleration_scaling = 0.2
-        goal_msg.frame_id = "world" 
-        goal_msg.target_id = "ur20_tc_connector" 
+        goal_msg.velocity_scaling = 0.1
+        goal_msg.acceleration_scaling = 0.02
+        goal_msg.frame_id = "" 
+        goal_msg.target_id = "" 
         goal_msg.method = "PTP"
         
         # Execution wait until action finishes completely
@@ -76,18 +75,18 @@ class PoseServoExample(Node):
         msg = PoseServo()
 
         # Update Header Stamp and Frames
-        msg.frame_id = 'world'
-        msg.target_id = 'ur20_tc_connector'
+        msg.frame_id = ''
+        msg.target_id = ''
 
         # Calculate elapsed time in seconds
         current_time = self.get_clock().now().nanoseconds / 1e9
         elapsed_time = current_time - self.start_time
 
         # Calculate sine wave for x coordinate
-        msg.target_pose.position.x = self.amplitude * math.sin(
+        msg.target_pose.position.x = 0.8
+        msg.target_pose.position.y = self.amplitude * math.sin(
             2.0 * math.pi * self.frequency * elapsed_time
         )
-        msg.target_pose.position.y = 0.0
         msg.target_pose.position.z = 0.5
 
         # Set orientation quaternion
@@ -111,3 +110,4 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
+

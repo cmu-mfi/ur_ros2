@@ -13,7 +13,7 @@ from robot_manager_interfaces.srv import StartAdmittancePoseServo
 class AdmittancePoseServoExample(Node):
     def __init__(self):
         super().__init__('admittance_pose_servo_example')
-        self.declare_parameter('ns', 'ur20')
+        self.declare_parameter('ns', '')
         self.ns = str(self.get_parameter("ns").value) + "/"
         self.publisher_ = self.create_publisher(
             PoseServo, self.ns + 'admittance_pose_servo', 10
@@ -26,8 +26,8 @@ class AdmittancePoseServoExample(Node):
         self.y = 0.0
         self.z = 0.8
         self.q = quaternion_from_euler(math.radians(180), math.radians(00), math.radians(-90))
-        self.frame_id = "ur20_base_link"
-        self.target_id = "ur20_tool0"
+        self.frame_id = ""
+        self.target_id = ""
 
         goal_msg = PoseGoal.Goal()
         goal_msg.target_pose = Pose(
@@ -58,7 +58,7 @@ class AdmittancePoseServoExample(Node):
         self.amplitude = 0.10  # Range: -0.1 to 0.1 meters
         self.frequency = 0.10  # 0.5 Hz
         self.start_time = self.get_clock().now().nanoseconds / 1e9
-        # self.timer = self.create_timer(self.timer_period, self.timer_callback)
+        self.timer = self.create_timer(self.timer_period, self.timer_callback)
         self.get_logger().info("Starting streaming")
 
     def start_admittance_pose_servo(self):

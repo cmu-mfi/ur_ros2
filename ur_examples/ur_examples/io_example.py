@@ -1,5 +1,4 @@
 import rclpy
-import time
 from ur_msgs.srv import SetIO
 
 class Io():

@@ -12,9 +12,9 @@
       command_in_type: "speed_units"
       joint_topic: joint_states
       scale:
-        linear: 2.0 # Max Linear Velocity in m/s
+        linear: 5.0 # Max Linear Velocity in m/s
         rotational: 5.0 # Max Angular Velocity in rad/s
-        joint: 1.00
+        joint: 2.00
       # Command out
       command_out_type: trajectory_msgs/JointTrajectory
       command_out_topic: joint_trajectory_controller/joint_trajectory

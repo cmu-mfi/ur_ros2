@@ -49,7 +49,7 @@ def main(args=None):
         goal_msg.velocity_scaling = 0.2
         goal_msg.acceleration_scaling = 0.1
         goal_msg.frame_id = "world" # Can be any frame. If empty -> base_link used
-        goal_msg.target_id = "ur20_tc_connector" # Can be any child of tool0. If empty -> tool0 used
+        goal_msg.target_id = "ur20_tool0" # Can be any child of tool0. If empty -> tool0 used
         goal_msg.method = "PTP" # Point-to-Point
 
         # Execution without Feedback
