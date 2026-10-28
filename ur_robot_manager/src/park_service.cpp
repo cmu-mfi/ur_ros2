@@ -17,6 +17,20 @@ namespace ur_robot_manager {
       const std::shared_ptr<Park::Request> request,
       std::shared_ptr<Park::Response> response) 
   {
+    // Make sure Robot is IDLE
+    {
+      std::lock_guard<std::mutex> lock(control_mode_mutex_);
+      if (control_mode_ != ControlMode::IDLE) {
+        RCLCPP_ERROR(this->get_logger(),
+            "[Park Service] Robot is already being controlled (current mode: %s).",
+            controlModeToString(control_mode_));
+        response->success = false;
+        response->message = "Robot is already being controlled.";
+        return;
+      }
+      control_mode_ = ControlMode::PARK;
+    }
+    ModeReset mode_reset = {control_mode_mutex_, control_mode_};
     // configure home moveit move
     double velocity_scaling = std::max(0.01, std::min(abs(request->speed), 1.0));
     double acceleration_scaling = velocity_scaling;

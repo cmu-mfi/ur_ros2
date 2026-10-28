@@ -4,6 +4,18 @@ namespace ur_robot_manager {
 
   // --- Twist Servo - Subscription Callback --- ///
   void UrRobotManager::twist_servo_subscription_callback_(const geometry_msgs::msg::TwistStamped::SharedPtr msg) {
+    // Make sure Robot is IDLE or already in TWIST_SERVO mode
+    {
+      std::lock_guard<std::mutex> lock(control_mode_mutex_);
+      if (control_mode_ != ControlMode::IDLE && control_mode_ != ControlMode::TWIST_SERVO) {
+        RCLCPP_ERROR_THROTTLE(
+            this->get_logger(), *this->get_clock(), 1000,
+            "[Twist Servo] Robot is already being controlled (current mode: %s).",
+            controlModeToString(control_mode_));
+        return;
+      }
+      control_mode_ = ControlMode::TWIST_SERVO;
+    }
     std::lock_guard<std::mutex> lock(twist_servo_mutex_);
     std::string reference_frame = msg->header.frame_id.empty() ? moveit_move_group_->getPlanningFrame() : msg->header.frame_id;
     twist_servo_target_cmd_.frame_id = reference_frame;
@@ -25,6 +37,12 @@ namespace ur_robot_manager {
     if ((now - twist_servo_last_msg_time_).seconds() > 0.2) {
       twist_servo_active_ = false;
       twist_servo_joint_cmd_rolling_window_.clear();
+      {
+        std::lock_guard<std::mutex> lock(control_mode_mutex_);
+        if (control_mode_ == ControlMode::TWIST_SERVO) {
+          control_mode_ = ControlMode::IDLE;
+        }
+      }
       RCLCPP_WARN(this->get_logger(), "[TwistServo] Stream timed out. Halting.");
       return;
     }

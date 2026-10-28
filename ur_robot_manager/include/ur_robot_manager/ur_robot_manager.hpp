@@ -44,6 +44,40 @@ namespace ur_robot_manager {
     std::array<double, 6> max_velocity;
   };
 
+  enum class ControlMode {
+    IDLE,
+    POSE_GOAL,
+    JOINT_GOAL,
+    HOME,
+    PARK,
+    POSE_SERVO,
+    TWIST_SERVO,
+    ADMITTANCE_POSE_SERVO
+  };
+
+  struct ModeReset {
+    std::mutex &mtx;
+    ControlMode &mode;
+    ~ModeReset() {
+      std::lock_guard<std::mutex> lock(mtx);
+      mode = ControlMode::IDLE;
+    }
+  };
+
+  inline const char* controlModeToString(ControlMode mode) {
+    switch (mode) {
+      case ControlMode::IDLE: return "IDLE";
+      case ControlMode::POSE_GOAL: return "POSE_GOAL";
+      case ControlMode::JOINT_GOAL: return "JOINT_GOAL";
+      case ControlMode::HOME: return "HOME";
+      case ControlMode::PARK: return "PARK";
+      case ControlMode::POSE_SERVO: return "POSE_SERVO";
+      case ControlMode::TWIST_SERVO: return "TWIST_SERVO";
+      case ControlMode::ADMITTANCE_POSE_SERVO: return "ADMITTANCE_POSE_SERVO";
+      default: return "UNKNOWN";
+    }
+  };
+
   class UrRobotManager : public rclcpp::Node {
     public:
       using JointGoal = robot_manager_interfaces::action::JointGoal;
@@ -68,6 +102,8 @@ namespace ur_robot_manager {
       // Parameters
       std::string ns_;
       std::string tf_prefix_;
+      std::mutex control_mode_mutex_;
+      ControlMode control_mode_ = ControlMode::IDLE;
 
       // TF 
       std::shared_ptr<tf2_ros::Buffer> tf_buffer_;

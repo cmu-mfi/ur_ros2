@@ -42,6 +42,19 @@ namespace ur_robot_manager {
       response->success = false;
       response->message = "Admittance Pose Servo already running!";
     } else {
+      // Make sure Robot is IDLE
+      {
+        std::lock_guard<std::mutex> lock(control_mode_mutex_);
+        if (control_mode_ != ControlMode::IDLE) {
+          RCLCPP_ERROR(this->get_logger(),
+              "[Admittance Pose Servo] Robot is already being controlled (current mode: %s).",
+              controlModeToString(control_mode_));
+          response->success = false;
+          response->message = "Robot is already being controlled.";
+          return;
+        }
+        control_mode_ = ControlMode::ADMITTANCE_POSE_SERVO;
+      }
       // Copy parameters into configuration struct
       admittance_pose_servo_config_.target_wrench = request->target_wrench;
       for (size_t i = 0; i < 6; ++i) {
@@ -99,6 +112,12 @@ namespace ur_robot_manager {
     RCLCPP_INFO(this->get_logger(), "[Admittance Pose Servo] Received request to stop admittance controller.");
     if (admittance_pose_servo_active_) {
       admittance_pose_servo_active_ = false;
+      {
+        std::lock_guard<std::mutex> lock(control_mode_mutex_);
+        if (control_mode_ == ControlMode::ADMITTANCE_POSE_SERVO) {
+          control_mode_ = ControlMode::IDLE;
+        }
+      }
       response->success = true;
       response->message = "Admittance pose servo successfully stopped.";
     } else {
@@ -110,6 +129,9 @@ namespace ur_robot_manager {
   // --- Admittance Pose Servo - Subscription Callback --- ///
   void UrRobotManager::admittance_pose_servo_subscription_callback_(const PoseServo::SharedPtr msg)
   {
+    if (!admittance_pose_servo_active_) {
+      return;
+    }
     std::string reference_frame = msg->frame_id.empty() ? (moveit_move_group_ ? moveit_move_group_->getPlanningFrame() : tf_prefix_ + "base_link") : msg->frame_id;
     geometry_msgs::msg::Pose tool0_pose;
     try {

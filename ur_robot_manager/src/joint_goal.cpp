@@ -17,6 +17,17 @@ namespace ur_robot_manager {
   // --- Joint Goal - Handle Goal --- ///
   rclcpp_action::GoalResponse UrRobotManager::joint_goal_handle_goal(const rclcpp_action::GoalUUID & uuid, std::shared_ptr<const JointGoal::Goal> goal) {
     (void)uuid;
+    // Make sure Robot is IDLE
+    {
+      std::lock_guard<std::mutex> lock(control_mode_mutex_);
+      if (control_mode_ != ControlMode::IDLE) {
+        RCLCPP_ERROR(this->get_logger(),
+            "[JointGoal] Robot is already being controlled (current mode: %s). Rejecting goal.",
+            controlModeToString(control_mode_));
+        return rclcpp_action::GoalResponse::REJECT;
+      }
+      control_mode_ = ControlMode::JOINT_GOAL;
+    }
     // Check for positions size
     if (goal->positions.size() != 6) {
       RCLCPP_ERROR(this->get_logger(), "[JointGoal] Invalid joint count! Expected 6, got %zu. Rejecting goal.", goal->positions.size());
@@ -43,6 +54,7 @@ namespace ur_robot_manager {
 
   // --- Joint Goal - Handle Execution --- ///
   void UrRobotManager::joint_goal_handle_execution(const std::shared_ptr<JointGoalHandle> goal_handle) {
+    ModeReset mode_reset = {control_mode_mutex_, control_mode_};
     auto result = std::make_shared<JointGoal::Result>();
     auto goal = goal_handle->get_goal();
     // Clear previous states

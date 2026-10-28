@@ -4,6 +4,22 @@ namespace ur_robot_manager {
 
   // --- Pose Servo - Subscription Callback --- ///
   void UrRobotManager::pose_servo_subscription_callback_(const PoseServo::SharedPtr msg) {
+    // Make sure Robot is IDLE, in POSE_SERVO, or ADMITTANCE_POSE_SERVO
+    {
+      std::lock_guard<std::mutex> lock(control_mode_mutex_);
+      if (control_mode_ != ControlMode::IDLE &&
+          control_mode_ != ControlMode::POSE_SERVO &&
+          control_mode_ != ControlMode::ADMITTANCE_POSE_SERVO) {
+        RCLCPP_ERROR_THROTTLE(
+            this->get_logger(), *this->get_clock(), 1000,
+            "[Pose Servo] Robot is already being controlled (current mode: %s).",
+            controlModeToString(control_mode_));
+        return;
+      }
+      if (control_mode_ == ControlMode::IDLE) {
+        control_mode_ = ControlMode::POSE_SERVO;
+      }
+    }
     std::lock_guard<std::mutex> lock(pose_servo_mutex_);
     // Transform target pose to tool0 frame
     std::string reference_frame = msg->frame_id.empty() ? moveit_move_group_->getPlanningFrame() : msg->frame_id;
@@ -28,6 +44,12 @@ namespace ur_robot_manager {
     if ((now - pose_servo_last_msg_time_).seconds() > 0.2) {
       pose_servo_active_ = false;
       pose_servo_joint_cmd_rolling_window_.clear();
+      {
+        std::lock_guard<std::mutex> lock(control_mode_mutex_);
+        if (control_mode_ == ControlMode::POSE_SERVO) {
+          control_mode_ = ControlMode::IDLE;
+        }
+      }
       RCLCPP_WARN(this->get_logger(), "[Servo] Stream timed out. Halting.");
       return;
     }
