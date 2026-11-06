@@ -32,16 +32,25 @@ namespace ur_robot_manager {
     }
     ModeReset mode_reset = {control_mode_mutex_, control_mode_};
     // configure moveit move
-    double velocity_scaling = std::max(0.01, std::min(abs(request->speed), 1.0));
-    double acceleration_scaling = velocity_scaling;
+    moveit_move_group_->setStartStateToCurrentState();
     moveit_move_group_->clearPoseTargets();
     moveit_move_group_->clearPathConstraints();
+    moveit_move_group_->setPlannerId("PTP");
+    // position
     std::vector<double> home_positions = {0.0, -M_PI/2, M_PI/2, -M_PI/2, -M_PI/2, 0.0}; 
-    moveit_move_group_->setJointValueTarget(home_positions);
+    if (!moveit_move_group_->setJointValueTarget(home_positions)) {
+      RCLCPP_ERROR(this->get_logger(), "[Home Service] Target joint values are out of bounds.");
+      response->success = false;
+      response->message = "Target joint values out of bounds.";
+      return;
+    }
+    // velocity and acceleration
+    double velocity_scaling = std::max(0.01, std::min(abs(request->speed), 1.0));
+    double acceleration_scaling = velocity_scaling;
     moveit_move_group_->setMaxVelocityScalingFactor(velocity_scaling);
     moveit_move_group_->setMaxAccelerationScalingFactor(acceleration_scaling);
-    moveit::planning_interface::MoveGroupInterface::Plan my_plan;
     // plan moveit move
+    moveit::planning_interface::MoveGroupInterface::Plan my_plan;
     bool success = (moveit_move_group_->plan(my_plan) == moveit::core::MoveItErrorCode::SUCCESS);
     if (!success) {
       RCLCPP_ERROR(this->get_logger(), "[Home Service] Planning failed. Cannot move home.");
