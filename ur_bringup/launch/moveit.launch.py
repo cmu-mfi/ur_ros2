@@ -174,6 +174,8 @@ def launch_setup(context):
                 kinematics,
                 joint_limits,
                 servo_parameters,
+                {"publish_robot_description": False},
+                {"publish_robot_description_semantic": False},
                 ],
             output="screen",
             arguments=[
