@@ -50,7 +50,7 @@ namespace ur_robot_manager {
       // Make sure Robot is IDLE
       {
         std::lock_guard<std::mutex> lock(control_mode_mutex_);
-        if (!robot_ready_ || control_mode_ != ControlMode::IDLE) {
+        if (control_mode_ != ControlMode::IDLE) {
           RCLCPP_ERROR(this->get_logger(),
               "[Admittance Pose Servo] Robot is already being controlled (current mode: %s).",
               controlModeToString(control_mode_));

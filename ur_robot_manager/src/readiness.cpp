@@ -78,8 +78,10 @@ namespace ur_robot_manager {
     {
       std::lock_guard<std::mutex> lock(control_mode_mutex_);
       bool ready = reason.empty();
-      readiness_lost = robot_ready_ && !ready;
-      robot_ready_ = ready;
+      readiness_lost = control_mode_ != ControlMode::NOT_READY && !ready;
+      if (control_mode_ == ControlMode::NOT_READY && ready) {
+        control_mode_ = ControlMode::IDLE;
+      }
     }
     if (readiness_lost) {
       RCLCPP_FATAL(this->get_logger(), "[Readiness] %s Exiting robot manager.", reason.c_str());
@@ -98,7 +100,7 @@ namespace ur_robot_manager {
   // --- Readiness - Command Check --- ///
   bool UrRobotManager::is_robot_ready() {
     std::lock_guard<std::mutex> lock(control_mode_mutex_);
-    return robot_ready_;
+    return control_mode_ != ControlMode::NOT_READY;
   }
 
 }  // namespace ur_robot_manager
