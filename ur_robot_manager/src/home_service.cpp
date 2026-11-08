@@ -20,12 +20,12 @@ namespace ur_robot_manager {
     // Make sure Robot is IDLE
     {
       std::lock_guard<std::mutex> lock(control_mode_mutex_);
-      if (control_mode_ != ControlMode::IDLE) {
+      if (!robot_ready_ || control_mode_ != ControlMode::IDLE) {
         RCLCPP_ERROR(this->get_logger(),
-            "[Home Service] Robot is already being controlled (current mode: %s).",
+            "[Home Service] Robot is not ready or already being controlled (current mode: %s).",
             controlModeToString(control_mode_));
         response->success = false;
-        response->message = "Robot is already being controlled.";
+        response->message = "Robot is not ready or already being controlled.";
         return;
       }
       control_mode_ = ControlMode::HOME;

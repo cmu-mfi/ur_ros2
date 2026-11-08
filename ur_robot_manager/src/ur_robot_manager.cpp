@@ -68,7 +68,10 @@ namespace ur_robot_manager
     RCLCPP_INFO(this->get_logger(), "[Setup] Setting up Admittance Pose Servo...");
     admittance_pose_servo_setup();
 
-    RCLCPP_INFO(this->get_logger(), "UR Robot Manager is ready!");
+    // Readiness Setup
+    readiness_setup();
+
+    RCLCPP_INFO(this->get_logger(), "Robot Manager setup complete. Waiting for robot readiness.");
   }
 
 }  // namespace ur_robot_manager

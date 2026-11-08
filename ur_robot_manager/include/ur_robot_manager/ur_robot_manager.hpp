@@ -10,6 +10,11 @@
 #include <deque>
 #include <mutex>
 #include <atomic>
+#include "controller_manager_msgs/msg/controller_manager_activity.hpp"
+#include "lifecycle_msgs/msg/state.hpp"
+#include "std_msgs/msg/bool.hpp"
+#include "ur_dashboard_msgs/msg/robot_mode.hpp"
+#include "ur_dashboard_msgs/msg/safety_mode.hpp"
 // TF2
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
@@ -104,6 +109,29 @@ namespace ur_robot_manager {
       std::string tf_prefix_;
       std::mutex control_mode_mutex_;
       ControlMode control_mode_ = ControlMode::IDLE;
+
+      // Readiness
+      using ControllerManagerActivity = controller_manager_msgs::msg::ControllerManagerActivity;
+      void readiness_setup();
+      void readiness_activity_callback_(const ControllerManagerActivity::SharedPtr msg);
+      void readiness_update();
+      bool is_robot_ready();
+      rclcpp::CallbackGroup::SharedPtr readiness_cb_group_;
+      rclcpp::Subscription<ControllerManagerActivity>::SharedPtr controller_activity_subscriber_;
+      bool hardware_ready_ = false;
+      bool controllers_ready_ = false;
+      bool robot_ready_ = false;
+      std::string hardware_component_name_;
+      std::vector<std::string> required_controllers_;
+      std::string readiness_reason_;
+
+      // UR Readiness Feedback
+      bool robot_program_running_ = false;
+      int8_t robot_mode_ = ur_dashboard_msgs::msg::RobotMode::DISCONNECTED;
+      uint8_t safety_mode_ = ur_dashboard_msgs::msg::SafetyMode::UNDEFINED_SAFETY_MODE;
+      rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr robot_program_running_subscriber_;
+      rclcpp::Subscription<ur_dashboard_msgs::msg::RobotMode>::SharedPtr robot_mode_subscriber_;
+      rclcpp::Subscription<ur_dashboard_msgs::msg::SafetyMode>::SharedPtr safety_mode_subscriber_;
 
       // TF 
       std::shared_ptr<tf2_ros::Buffer> tf_buffer_;

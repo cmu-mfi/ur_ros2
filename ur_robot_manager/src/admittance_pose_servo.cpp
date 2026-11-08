@@ -37,6 +37,11 @@ namespace ur_robot_manager {
       const std::shared_ptr<StartAdmittancePoseServo::Request> request,
       std::shared_ptr<StartAdmittancePoseServo::Response> response)
   {
+    if (!is_robot_ready()) {
+      response->success = false;
+      response->message = "Robot is not ready.";
+      return;
+    }
     RCLCPP_INFO(this->get_logger(), "[Admittance Pose Servo] Received request to start admittance controller.");
     if (admittance_pose_servo_active_) {
       response->success = false;
@@ -45,7 +50,7 @@ namespace ur_robot_manager {
       // Make sure Robot is IDLE
       {
         std::lock_guard<std::mutex> lock(control_mode_mutex_);
-        if (control_mode_ != ControlMode::IDLE) {
+        if (!robot_ready_ || control_mode_ != ControlMode::IDLE) {
           RCLCPP_ERROR(this->get_logger(),
               "[Admittance Pose Servo] Robot is already being controlled (current mode: %s).",
               controlModeToString(control_mode_));
@@ -129,6 +134,7 @@ namespace ur_robot_manager {
   // --- Admittance Pose Servo - Subscription Callback --- ///
   void UrRobotManager::admittance_pose_servo_subscription_callback_(const PoseServo::SharedPtr msg)
   {
+    if (!is_robot_ready()) return;
     if (!admittance_pose_servo_active_) {
       return;
     }

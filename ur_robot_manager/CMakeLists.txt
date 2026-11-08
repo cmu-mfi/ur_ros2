@@ -15,6 +15,10 @@ set(DEPENDENCIES
   moveit_servo
   rclcpp
   rclcpp_action
+  controller_manager_msgs
+  lifecycle_msgs
+  std_msgs
+  ur_dashboard_msgs
   tf2_ros
   robot_manager_interfaces
   std_srvs
@@ -31,6 +35,7 @@ endforeach()
 add_executable(
   ur_robot_manager 
   src/ur_robot_manager.cpp 
+  src/readiness.cpp
   src/moveit.cpp
   src/servo.cpp
   src/joint_goal.cpp

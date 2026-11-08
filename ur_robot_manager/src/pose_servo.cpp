@@ -4,6 +4,7 @@ namespace ur_robot_manager {
 
   // --- Pose Servo - Subscription Callback --- ///
   void UrRobotManager::pose_servo_subscription_callback_(const PoseServo::SharedPtr msg) {
+    if (!is_robot_ready()) return;
     // Make sure Robot is IDLE, in POSE_SERVO, or ADMITTANCE_POSE_SERVO
     {
       std::lock_guard<std::mutex> lock(control_mode_mutex_);

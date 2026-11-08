@@ -17,21 +17,21 @@ namespace ur_robot_manager {
   // --- Joint Goal - Handle Goal --- ///
   rclcpp_action::GoalResponse UrRobotManager::joint_goal_handle_goal(const rclcpp_action::GoalUUID & uuid, std::shared_ptr<const JointGoal::Goal> goal) {
     (void)uuid;
-    // Make sure Robot is IDLE
-    {
-      std::lock_guard<std::mutex> lock(control_mode_mutex_);
-      if (control_mode_ != ControlMode::IDLE) {
-        RCLCPP_ERROR(this->get_logger(),
-            "[JointGoal] Robot is already being controlled (current mode: %s). Rejecting goal.",
-            controlModeToString(control_mode_));
-        return rclcpp_action::GoalResponse::REJECT;
-      }
-      control_mode_ = ControlMode::JOINT_GOAL;
-    }
     // Check for positions size
     if (goal->positions.size() != 6) {
       RCLCPP_ERROR(this->get_logger(), "[JointGoal] Invalid joint count! Expected 6, got %zu. Rejecting goal.", goal->positions.size());
       return rclcpp_action::GoalResponse::REJECT;
+    }
+    // Make sure Robot is IDLE
+    {
+      std::lock_guard<std::mutex> lock(control_mode_mutex_);
+      if (!robot_ready_ || control_mode_ != ControlMode::IDLE) {
+        RCLCPP_ERROR(this->get_logger(),
+            "[JointGoal] Robot is not ready or already being controlled (current mode: %s). Rejecting goal.",
+            controlModeToString(control_mode_));
+        return rclcpp_action::GoalResponse::REJECT;
+      }
+      control_mode_ = ControlMode::JOINT_GOAL;
     }
     RCLCPP_INFO(this->get_logger(), "[JointGoal] Accepted Goal.");
     return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
@@ -91,7 +91,15 @@ namespace ur_robot_manager {
     RCLCPP_INFO(this->get_logger(), "[JointGoal] Planning successful. Executing at %d%% speed...", (int)(velocity_scaling * 100));
     // --- Preparing for Feedback ---
     std::vector<double> start_positions;
-    moveit_move_group_->getCurrentState()->copyJointGroupPositions(moveit_planning_group_, start_positions);
+    auto start_state = moveit_move_group_->getCurrentState();
+    if (!start_state) {
+      result->success = false;
+      result->error_code = 2;
+      result->message = "Current robot state is unavailable.";
+      goal_handle->abort(result);
+      return;
+    }
+    start_state->copyJointGroupPositions(moveit_planning_group_, start_positions);
     double total_distance = calculate_joint_distance(start_positions, goal->positions);
     // Run the execution in an asynchronous task
     auto exec_future = std::async(std::launch::async, [this, &my_plan]() {
@@ -112,7 +120,12 @@ namespace ur_robot_manager {
       }
       // 2. Get current joint positions
       std::vector<double> current_positions;
-      moveit_move_group_->getCurrentState()->copyJointGroupPositions(moveit_planning_group_, current_positions);
+      auto current_state = moveit_move_group_->getCurrentState();
+      if (!current_state) {
+        loop_rate.sleep();
+        continue;
+      }
+      current_state->copyJointGroupPositions(moveit_planning_group_, current_positions);
       // 3. Calculate progress percentage
       if (total_distance > 0.0001) {
         double current_distance_to_goal = calculate_joint_distance(current_positions, goal->positions);

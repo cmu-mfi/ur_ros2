@@ -11,9 +11,6 @@ namespace ur_robot_manager {
         service_cb_group_
         );
     ur_set_payload_client_ = this->create_client<UrSetPayload>("io_and_status_controller/set_payload");
-    while (!ur_set_payload_client_->wait_for_service(std::chrono::seconds(1))) {
-      RCLCPP_INFO(this->get_logger(), "Waiting for service: io_and_status_controller/set_payload");
-    }
   }
 
   // --- Set Payload Service - Service Callback --- ///
@@ -21,6 +18,12 @@ namespace ur_robot_manager {
       const std::shared_ptr<SetPayload::Request> request,
       std::shared_ptr<SetPayload::Response> response) 
   {
+    if (!is_robot_ready()) {
+      response->success = false;
+      response->message = "Robot is not ready.";
+      return;
+    }
+
     // Extract payload parameters from the request
     double mass = request->mass;
     double cog_x = request->cog.x;

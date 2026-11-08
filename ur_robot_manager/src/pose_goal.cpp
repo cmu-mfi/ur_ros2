@@ -17,17 +17,6 @@ namespace ur_robot_manager {
   // --- Pose Goal - Handle Goal --- ///
   rclcpp_action::GoalResponse UrRobotManager::pose_goal_handle_goal(const rclcpp_action::GoalUUID & uuid, std::shared_ptr<const PoseGoal::Goal> goal) {
     (void)uuid;
-    // Make sure Robot is IDLE
-    {
-      std::lock_guard<std::mutex> lock(control_mode_mutex_);
-      if (control_mode_ != ControlMode::IDLE) {
-        RCLCPP_ERROR(this->get_logger(),
-            "[PoseGoal] Robot is already being controlled (current mode: %s). Rejecting goal.",
-            controlModeToString(control_mode_));
-        return rclcpp_action::GoalResponse::REJECT;
-      }
-      control_mode_ = ControlMode::POSE_GOAL;
-    }
     // Check for valid method
     if (goal->method != "PTP" && goal->method != "LIN") {
       RCLCPP_ERROR(this->get_logger(), "[PoseGoal] Invalid method! Can be LIN or PTP, got %s", goal->method.c_str());
@@ -48,6 +37,17 @@ namespace ur_robot_manager {
     if (goal->velocity_scaling > 1.0 || goal->acceleration_scaling > 1.0) {
       RCLCPP_ERROR(this->get_logger(), "[PoseGoal] Velocity and acceleration scaling can't be more than 1.0. Rejecting goal.");
       return rclcpp_action::GoalResponse::REJECT;
+    }
+    // Make sure Robot is IDLE
+    {
+      std::lock_guard<std::mutex> lock(control_mode_mutex_);
+      if (!robot_ready_ || control_mode_ != ControlMode::IDLE) {
+        RCLCPP_ERROR(this->get_logger(),
+            "[PoseGoal] Robot is not ready or already being controlled (current mode: %s). Rejecting goal.",
+            controlModeToString(control_mode_));
+        return rclcpp_action::GoalResponse::REJECT;
+      }
+      control_mode_ = ControlMode::POSE_GOAL;
     }
     RCLCPP_INFO(this->get_logger(), "[PoseGoal] Accepted Goal.");
     return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
