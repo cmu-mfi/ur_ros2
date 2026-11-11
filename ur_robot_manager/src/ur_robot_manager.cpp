@@ -5,89 +5,73 @@ namespace ur_robot_manager
   UrRobotManager::UrRobotManager() : Node("ur_robot_manager", rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true)) {
     ns_ = this->get_parameter("ns").as_string();
     tf_prefix_ = this->get_parameter("tf_prefix").as_string();
-    planning_group_ = tf_prefix_ + "manipulator"; 
-    RCLCPP_INFO(this->get_logger(), "Initilizing Robot Manager with namespace: /%s and planning group: %s", ns_.c_str(), planning_group_.c_str());
+    moveit_planning_group_ = tf_prefix_ + "manipulator"; 
+    RCLCPP_INFO(this->get_logger(), "Initilizing UR Robot Manager with namespace: /%s and planning group: %s", ns_.c_str(), moveit_planning_group_.c_str());
   }
 
   // --- Setup --- ///
   void UrRobotManager::setup() {
-    moveit::planning_interface::MoveGroupInterface::Options options(planning_group_, "robot_description", "/"+ns_);
-    move_group_ = std::make_unique<moveit::planning_interface::MoveGroupInterface>(shared_from_this(), options);
-    planning_scene_interface_ = std::make_unique<moveit::planning_interface::PlanningSceneInterface>();
+    RCLCPP_INFO(this->get_logger(), "Starting UrRobotManager setup...");
 
-    // default settings
-    move_group_->setPlanningTime(5.0);
-    move_group_->setNumPlanningAttempts(10);
-    move_group_->setPlanningPipelineId("pilz_industrial_motion_planner");
-    move_group_->setPlannerId("PTP");
+    // ROS2 Setup
+    RCLCPP_INFO(this->get_logger(), "[Setup] Configuring callback groups...");
+    service_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+    servo_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+    ee_state_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 
     // TF setup
+    RCLCPP_INFO(this->get_logger(), "[Setup] Initializing TF buffer and listener...");
     tf_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock()); 
     tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
 
-    // JointGoal Action Server
-    joint_goal_action_server_ = rclcpp_action::create_server<JointGoal>(
-        this,
-        "joint_goal",
-        std::bind(&UrRobotManager::joint_goal_handle_goal, this, std::placeholders::_1, std::placeholders::_2),
-        std::bind(&UrRobotManager::joint_goal_handle_cancel, this, std::placeholders::_1),
-        std::bind(&UrRobotManager::joint_goal_handle_accepted, this, std::placeholders::_1)
-        );
-    // PoseGoal Action Server
-    pose_goal_action_server_ = rclcpp_action::create_server<PoseGoal>(
-        this,
-        "pose_goal",
-        std::bind(&UrRobotManager::pose_goal_handle_goal, this, std::placeholders::_1, std::placeholders::_2),
-        std::bind(&UrRobotManager::pose_goal_handle_cancel, this, std::placeholders::_1),
-        std::bind(&UrRobotManager::pose_goal_handle_accepted, this, std::placeholders::_1)
-        );
-    // Home Service
-    service_cb_group_ = this->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-    home_service_ = this->create_service<Home>(
-        "home",
-        std::bind(&UrRobotManager::home_service_callback, this, std::placeholders::_1, std::placeholders::_2),
-        rclcpp::QoS(rclcpp::KeepLast(10)).reliable().durability_volatile(),
-        service_cb_group_
-        );
-    // Park Service
-    park_service_ = this->create_service<Park>(
-        "park",
-        std::bind(&UrRobotManager::park_service_callback, this, std::placeholders::_1, std::placeholders::_2),
-        rclcpp::QoS(rclcpp::KeepLast(10)).reliable().durability_volatile(),
-        service_cb_group_
-        );
-    // Set Payload Service
-    set_payload_service_ = this->create_service<SetPayload>(
-        "set_payload",
-        std::bind(&UrRobotManager::set_payload_service_callback, this, std::placeholders::_1, std::placeholders::_2),
-        rclcpp::QoS(rclcpp::KeepLast(10)).reliable().durability_volatile(),
-        service_cb_group_
-        );
-    ur_set_payload_client_ = this->create_client<UrSetPayload>("io_and_status_controller/set_payload");
-    while (!ur_set_payload_client_->wait_for_service(std::chrono::seconds(1))) {
-      RCLCPP_INFO(this->get_logger(), "Waiting for service: io_and_status_controller/set_payload");
-    }
-    // Set Io Service
-    set_io_service_ = this->create_service<SetIo>(
-        "set_io",
-        std::bind(&UrRobotManager::set_io_service_callback, this, std::placeholders::_1, std::placeholders::_2),
-        rclcpp::QoS(rclcpp::KeepLast(10)).reliable().durability_volatile(),
-        service_cb_group_
-        );
-    ur_set_io_client_ = this->create_client<UrSetIo>("io_and_status_controller/set_io");
-    while (!ur_set_io_client_->wait_for_service(std::chrono::seconds(1))) {
-      RCLCPP_INFO(this->get_logger(), "Waiting for service: io_and_status_controller/set_io");
-    }
+    // Setup Moveit
+    RCLCPP_INFO(this->get_logger(), "[Setup] Setting up MoveIt...");
+    moveit_setup();
 
-    // --- FT Publisher ---
-    ur_wrench_subscriber_ = this->create_subscription<WrenchStamped>(
-        "force_torque_sensor_broadcaster/wrench_filtered", 
-        rclcpp::QoS(10), 
-        std::bind(&UrRobotManager::ur_wrench_subscription_callback_, this, std::placeholders::_1)
-        );
-    wrench_publisher_ = this->create_publisher<WrenchStamped>("wrench", rclcpp::QoS(10));
+    // Setup Servo
+    RCLCPP_INFO(this->get_logger(), "[Setup] Setting up MoveIt Servo...");
+    servo_setup();
 
-    RCLCPP_INFO(this->get_logger(), "Robot Manager is ready!");
+    // Joint Goal Setup
+    RCLCPP_INFO(this->get_logger(), "[Setup] Setting up Joint Goal action server...");
+    joint_goal_setup();
+
+    // Pose Goal Setup
+    RCLCPP_INFO(this->get_logger(), "[Setup] Setting up Pose Goal action server...");
+    pose_goal_setup();
+
+    // Home Service Setup
+    RCLCPP_INFO(this->get_logger(), "[Setup] Setting up Home service...");
+    home_service_setup();
+
+    // Park Service Setup
+    RCLCPP_INFO(this->get_logger(), "[Setup] Setting up Park service...");
+    park_service_setup();
+
+    // Set Payload Service Setup
+    RCLCPP_INFO(this->get_logger(), "[Setup] Setting up Set Payload service...");
+    set_payload_service_setup();
+
+    // Set IO Service Setup
+    RCLCPP_INFO(this->get_logger(), "[Setup] Setting up Set IO service...");
+    set_io_service_setup();
+
+    // Wrench Publisher Setup
+    RCLCPP_INFO(this->get_logger(), "[Setup] Setting up Wrench publisher...");
+    wrench_publisher_setup();
+
+    // EE State Publisher Setup
+    RCLCPP_INFO(this->get_logger(), "[Setup] Setting up EE State publisher...");
+    ee_state_publisher_setup();
+
+    // Admittance Pose Servo Setup
+    RCLCPP_INFO(this->get_logger(), "[Setup] Setting up Admittance Pose Servo...");
+    admittance_pose_servo_setup();
+
+    // Readiness Setup
+    readiness_setup();
+
+    RCLCPP_INFO(this->get_logger(), "Robot Manager setup complete. Waiting for robot readiness.");
   }
 
 }  // namespace ur_robot_manager
@@ -95,14 +79,21 @@ namespace ur_robot_manager
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
     auto node = std::make_shared<ur_robot_manager::UrRobotManager>();
-
-    node->setup();
-
+    
     rclcpp::executors::MultiThreadedExecutor executor;
     executor.add_node(node);
+
+    std::thread setup_thread([&node]() {
+        node->setup();
+    });
+
     executor.spin();
 
     rclcpp::shutdown();
+    
+    if (setup_thread.joinable()) {
+        setup_thread.join();
+    }
+    
     return 0;
-}
-
+} 

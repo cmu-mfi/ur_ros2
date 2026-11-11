@@ -72,6 +72,7 @@
   <xacro:ur_ros2_control
     name="$(arg model)"
     tf_prefix="$(arg tf_prefix)"
+    ur_type="$(arg model)"
     kinematics_parameters_file="$(arg kinematics_params)"
     transmission_hw_interface="$(arg transmission_hw_interface)"
     use_mock_hardware="$(arg use_mock_hardware)"

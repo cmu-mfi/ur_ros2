@@ -1,7 +1,19 @@
 #include "ur_robot_manager/ur_robot_manager.hpp"
 
-namespace ur_robot_manager
-{
+namespace ur_robot_manager {
+
+  // --- Pose Goal - Setup --- ///
+  void UrRobotManager::pose_goal_setup() {
+    // PoseGoal Action Server
+    pose_goal_action_server_ = rclcpp_action::create_server<PoseGoal>(
+        this,
+        "pose_goal",
+        std::bind(&UrRobotManager::pose_goal_handle_goal, this, std::placeholders::_1, std::placeholders::_2),
+        std::bind(&UrRobotManager::pose_goal_handle_cancel, this, std::placeholders::_1),
+        std::bind(&UrRobotManager::pose_goal_handle_accepted, this, std::placeholders::_1)
+        );
+  }
+
   // --- Pose Goal - Handle Goal --- ///
   rclcpp_action::GoalResponse UrRobotManager::pose_goal_handle_goal(const rclcpp_action::GoalUUID & uuid, std::shared_ptr<const PoseGoal::Goal> goal) {
     (void)uuid;
@@ -26,6 +38,17 @@ namespace ur_robot_manager
       RCLCPP_ERROR(this->get_logger(), "[PoseGoal] Velocity and acceleration scaling can't be more than 1.0. Rejecting goal.");
       return rclcpp_action::GoalResponse::REJECT;
     }
+    // Make sure Robot is IDLE
+    {
+      std::lock_guard<std::mutex> lock(control_mode_mutex_);
+      if (control_mode_ != ControlMode::IDLE) {
+        RCLCPP_ERROR(this->get_logger(),
+            "[PoseGoal] Robot is not ready or already being controlled (current mode: %s). Rejecting goal.",
+            controlModeToString(control_mode_));
+        return rclcpp_action::GoalResponse::REJECT;
+      }
+      control_mode_ = ControlMode::POSE_GOAL;
+    }
     RCLCPP_INFO(this->get_logger(), "[PoseGoal] Accepted Goal.");
     return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
   }
@@ -34,8 +57,8 @@ namespace ur_robot_manager
   rclcpp_action::CancelResponse UrRobotManager::pose_goal_handle_cancel(const std::shared_ptr<PoseGoalHandle> goal_handle) {
     RCLCPP_INFO(this->get_logger(), "[PoseGoal] Received request to cancel goal");
     (void)goal_handle;
-    if (move_group_) {
-      move_group_->stop(); // Stops the current trajectory execution
+    if (moveit_move_group_) {
+      moveit_move_group_->stop(); // Stops the current trajectory execution
     }
     return rclcpp_action::CancelResponse::ACCEPT;
   }
@@ -47,59 +70,36 @@ namespace ur_robot_manager
 
   // --- Pose Goal - Handle Execution --- ///
   void UrRobotManager::pose_goal_handle_execution(const std::shared_ptr<PoseGoalHandle> goal_handle) {
+    ModeReset mode_reset = {control_mode_mutex_, control_mode_};
     auto result = std::make_shared<PoseGoal::Result>();
     auto goal = goal_handle->get_goal();
-
-    // Determine the actual target frame and tool0 frame
-    std::string tool0_frame = move_group_->getEndEffectorLink();
-    std::string target_frame = goal->target_id.empty() ? tool0_frame : goal->target_id;
-    std::string reference_frame = goal->frame_id.empty() ? move_group_->getPlanningFrame() : goal->frame_id;
-    geometry_msgs::msg::Pose goal_pose = goal->target_pose;
-    // If target_frame isnt tool0:
-    if (target_frame != tool0_frame) {
-      // Check wheter the target_frame is a child of tool0:
-      if (!is_frame_tool0_child(target_frame)) {
-        RCLCPP_ERROR(this->get_logger(), "[PoseGoal] TF Verification Failed: Target Frame '%s' is not a Child of '%s'", target_frame.c_str(), tool0_frame.c_str());
-        result->success = false;
-        result->error_code = 1;
-        result->message = "Target Frame '" + target_frame + "' is not a Child of '" + tool0_frame + "'";
-        goal_handle->abort(result);
-        return;
-      }
-      // Calculate tool0 pose from target pose
-      try {
-        geometry_msgs::msg::TransformStamped tool0_in_target_msg = 
-          tf_buffer_->lookupTransform(target_frame, tool0_frame, rclcpp::Time(0), rclcpp::Duration::from_seconds(0.5));
-        tf2::Transform target_pose;
-        tf2::fromMsg(goal->target_pose, target_pose);
-        tf2::Transform tf_tool0_in_target;
-        tf2::fromMsg(tool0_in_target_msg.transform, tf_tool0_in_target);
-        tf2::Transform tf_tool0_in_frame = target_pose * tf_tool0_in_target;
-        tf2::toMsg(tf_tool0_in_frame, goal_pose);
-      } catch (const tf2::TransformException & ex) {
-        RCLCPP_ERROR(this->get_logger(), "[PoseGoal] TF Verification Failed: Could not transform %s to %s: %s", 
-            tool0_frame.c_str(), target_frame.c_str(), ex.what());
-        result->success = false;
-        result->error_code = 1;
-        result->message = "Invalid TF frames provided";
-        goal_handle->abort(result);
-        return;
-      }
+    // Determine target and reference frames
+    std::string tool0_frame = moveit_move_group_->getEndEffectorLink();
+    std::string reference_frame = goal->frame_id.empty() ? moveit_move_group_->getPlanningFrame() : goal->frame_id;
+    geometry_msgs::msg::Pose goal_pose;
+    try {
+      goal_pose = transform_pose_to_tool0_frame(goal->target_pose, goal->target_id);
+    } catch (const tf2::TransformException & ex) {
+      RCLCPP_ERROR(this->get_logger(), "[PoseGoal] TF Verification Failed: %s", ex.what());
+      result->success = false;
+      result->error_code = 1;
+      result->message = ex.what();
+      goal_handle->abort(result);
+      return;
     }
     // Clear previous states
-    move_group_->clearPoseTargets();
-    move_group_->clearPathConstraints();
-    move_group_->clearTrajectoryConstraints();
-
+    moveit_move_group_->clearPoseTargets();
+    moveit_move_group_->clearPathConstraints();
+    moveit_move_group_->clearTrajectoryConstraints();
     // Plan
-    move_group_->setPoseReferenceFrame(reference_frame);
-    move_group_->setPoseTarget(goal_pose, tool0_frame);
-    move_group_->setMaxVelocityScalingFactor(goal->velocity_scaling);
-    move_group_->setMaxAccelerationScalingFactor(goal->acceleration_scaling);
-    move_group_->setPlannerId(goal->method);
-    geometry_msgs::msg::PoseStamped start_pose = move_group_->getCurrentPose(tool0_frame);
+    moveit_move_group_->setPoseReferenceFrame(reference_frame);
+    moveit_move_group_->setPoseTarget(goal_pose, tool0_frame);
+    moveit_move_group_->setMaxVelocityScalingFactor(goal->velocity_scaling);
+    moveit_move_group_->setMaxAccelerationScalingFactor(goal->acceleration_scaling);
+    moveit_move_group_->setPlannerId(goal->method);
+    geometry_msgs::msg::PoseStamped start_pose = moveit_move_group_->getCurrentPose(tool0_frame);
     moveit::planning_interface::MoveGroupInterface::Plan my_plan;
-    bool success = (move_group_->plan(my_plan) == moveit::core::MoveItErrorCode::SUCCESS);
+    bool success = (moveit_move_group_->plan(my_plan) == moveit::core::MoveItErrorCode::SUCCESS);
     if (!success) {
       RCLCPP_ERROR(this->get_logger(), "[PoseGoal] Planning failed!");
       result->success = false;
@@ -109,12 +109,10 @@ namespace ur_robot_manager
       return;
     }
     RCLCPP_INFO(this->get_logger(), "[PoseGoal] Planning successful. Executing at %d%% speed...", (int)(goal->velocity_scaling * 100));
-
     // Execution
     auto exec_future = std::async(std::launch::async, [this, &my_plan]() {
-        return move_group_->execute(my_plan);
+        return moveit_move_group_->execute(my_plan);
         });
-
     // Feedback 
     double total_distance = calculate_cartesian_distance(start_pose.pose.position, goal_pose.position);
     rclcpp::Rate loop_rate(20);
@@ -130,7 +128,7 @@ namespace ur_robot_manager
         return;
       }
       // Calculate progress
-      geometry_msgs::msg::PoseStamped current_pose = move_group_->getCurrentPose(tool0_frame);
+      geometry_msgs::msg::PoseStamped current_pose = moveit_move_group_->getCurrentPose(tool0_frame);
       if (total_distance > 0.001) {
         double current_distance = calculate_cartesian_distance(current_pose.pose.position, goal_pose.position);
         double progress = (1.0 - (current_distance / total_distance)) * 100.0;
@@ -143,7 +141,6 @@ namespace ur_robot_manager
       goal_handle->publish_feedback(feedback);
       loop_rate.sleep();
     }
-
     // Finish Execution
     auto exec_status = exec_future.get();
     if (exec_status == moveit::core::MoveItErrorCode::SUCCESS) {
@@ -165,23 +162,7 @@ namespace ur_robot_manager
 
   // --- Helper Function - Calculate Cartesion Distance --- ///
   double UrRobotManager::calculate_cartesian_distance(const geometry_msgs::msg::Point& p1, const geometry_msgs::msg::Point& p2) {
-      return std::sqrt(std::pow(p1.x - p2.x, 2) + std::pow(p1.y - p2.y, 2) + std::pow(p1.z - p2.z, 2));
-    };
-  // --- Helper Function - Check if transform is a child of tool0 --- ///
-  bool UrRobotManager::is_frame_tool0_child(const std::string& target_frame) {
-    const std::string tool0_frame = move_group_->getEndEffectorLink();
-    if (target_frame == tool0_frame) {
-      return true;
-    }
-    std::string current_frame = target_frame;
-    std::string next_parent;
-    tf2::TimePoint time = tf2::TimePointZero; 
-    while (tf_buffer_->_getParent(current_frame, time, next_parent)) {
-      if (next_parent == tool0_frame) {
-        return true;
-      }
-      current_frame = next_parent;
-    }
-    return false;
-  }
+    return std::sqrt(std::pow(p1.x - p2.x, 2) + std::pow(p1.y - p2.y, 2) + std::pow(p1.z - p2.z, 2));
+  };
+
 }  // namespace ur_robot_manager

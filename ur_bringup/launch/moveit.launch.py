@@ -12,13 +12,13 @@ from launch_ros.parameter_descriptions import ParameterValue
 
 def launch_setup(context):
     # Load parameters
-    log_level = context.launch_configurations['log_level']
-    ns = context.launch_configurations['ns']
-    tf_prefix = context.launch_configurations['tf_prefix']
-    model = context.launch_configurations['model']
-    launch_servo = context.launch_configurations['launch_servo']
-    launch_rviz = context.launch_configurations['launch_rviz']
-    kinematics_params_file = context.launch_configurations['kinematics_params_file']
+    log_level               = str(context.launch_configurations['log_level']).lower()
+    ns                      = str(context.launch_configurations['ns'])
+    model                   = str(context.launch_configurations['model'])
+    launch_rviz             = str(context.launch_configurations["launch_rviz"]).lower()
+    launch_servo            = str(context.launch_configurations["launch_servo"]).lower()
+    tf_prefix               = str(context.launch_configurations['tf_prefix'])
+    kinematics_params_file  = str(context.launch_configurations['kinematics_params_file'])
 
     # print parameters
     print("")
@@ -89,17 +89,14 @@ def launch_setup(context):
     with open(joint_limits_path, 'r') as file:
         joint_limits_yaml = yaml.safe_load(file)
     raw_limits = joint_limits_yaml.get('joint_limits', {})
-    prefixed_limits = {
-            f"{tf_prefix}{joint_name}": limits 
-            for joint_name, limits in raw_limits.items()
-            }
-    joint_limits = {'robot_description_planning': 
-                    {
-                        "default_velocity_scaling_factor": 1.0,
-                        "default_acceleration_scaling_factor": 1.0,
-                        "joint_limits": prefixed_limits,
-                        }
-                    }
+    prefixed_limits = {}
+    for joint_name, limits in raw_limits.items():
+        # Check if max_velocity exists for the joint and multiply it by 10
+        # This is because of a moveit servo bug
+        if 'max_velocity' in limits:
+            limits['max_velocity'] = limits['max_velocity'] * 10.0
+        prefixed_limits[f"{tf_prefix}{joint_name}"] = limits
+    joint_limits = {'robot_description_planning': {"joint_limits": prefixed_limits}}
 
     # Planning Pipeline
     pilz_config_path = os.path.join(get_package_share_directory(pkg_prefix+"bringup"), 'config', 'pilz_industrial_motion_planner_planning.yaml')
@@ -177,6 +174,8 @@ def launch_setup(context):
                 kinematics,
                 joint_limits,
                 servo_parameters,
+                {"publish_robot_description": False},
+                {"publish_robot_description_semantic": False},
                 ],
             output="screen",
             arguments=[

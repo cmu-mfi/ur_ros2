@@ -7,14 +7,15 @@ from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 from launch.substitutions import Command, FindExecutable, LaunchConfiguration, PathJoinSubstitution, PythonExpression 
 from launch_ros.parameter_descriptions import ParameterValue
+from launch_ros.parameter_descriptions import ParameterFile
 
 def launch_setup(context):
     # Load parameters
-    log_level = context.launch_configurations['log_level']
-    ns = context.launch_configurations['ns']
-    tf_prefix = context.launch_configurations['tf_prefix']
-    model = context.launch_configurations['model']
-    kinematics_params_file = context.launch_configurations['kinematics_params_file']
+    log_level               = str(context.launch_configurations['log_level']).lower()
+    ns                      = str(context.launch_configurations['ns'])
+    model                   = str(context.launch_configurations['model'])
+    tf_prefix               = str(context.launch_configurations['tf_prefix'])
+    kinematics_params_file  = str(context.launch_configurations['kinematics_params_file'])
 
     # print parameters
     print("")
@@ -83,10 +84,13 @@ def launch_setup(context):
     with open(joint_limits_path, 'r') as file:
         joint_limits_yaml = yaml.safe_load(file)
     raw_limits = joint_limits_yaml.get('joint_limits', {})
-    prefixed_limits = {
-            f"{tf_prefix}{joint_name}": limits 
-            for joint_name, limits in raw_limits.items()
-            }
+    prefixed_limits = {}
+    for joint_name, limits in raw_limits.items():
+        # Check if max_velocity exists for the joint and multiply it by 10
+        # This is because of a moveit servo bug
+        if 'max_velocity' in limits:
+            limits['max_velocity'] = limits['max_velocity'] * 10.0
+        prefixed_limits[f"{tf_prefix}{joint_name}"] = limits
     joint_limits = {'robot_description_planning': {"joint_limits": prefixed_limits}}
 
     # Planning Scene Parameters
@@ -100,6 +104,8 @@ def launch_setup(context):
             }
 
     # Robot Manager
+    servo_parameters_path = os.path.join(get_package_share_directory(pkg_prefix+"bringup"), 'config', 'servo_parameters.yaml')
+    servo_parameters = ParameterFile(servo_parameters_path, allow_substs=True)
     ur_robot_manager = Node(
         package='ur_robot_manager',
         executable='ur_robot_manager',
@@ -111,9 +117,11 @@ def launch_setup(context):
             kinematics,
             joint_limits,
             planning_scene_parameters,
+            servo_parameters,
             {
                 'ns': ns,
                 'tf_prefix': tf_prefix,
+                'hardware_component_name': model,
             },
         ],
         arguments=[
@@ -123,31 +131,7 @@ def launch_setup(context):
         ]
     )
     
-    # EE State Publisher
-    ee_state_publisher = Node(
-        package='ur_robot_manager',
-        executable='ee_state_publisher',
-        namespace=ns,
-        output='screen',
-        parameters=[
-            robot_description,
-            robot_description_semantic,
-            kinematics,
-            joint_limits,
-            planning_scene_parameters,
-            {
-                'ns': ns,
-                'tf_prefix': tf_prefix,
-            },
-        ],
-        arguments=[
-            '--ros-args', 
-            '--log-level', 
-            log_level
-        ]
-    )
-    
-    return [ur_robot_manager, ee_state_publisher]
+    return [ur_robot_manager]
 
 def generate_launch_description():
     declared_arguments = []

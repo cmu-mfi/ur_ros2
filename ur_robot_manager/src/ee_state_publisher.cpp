@@ -1,207 +1,115 @@
-#include "ur_robot_manager/ee_state_publisher.hpp"
-#include "geometry_msgs/msg/pose_stamped.hpp"
-#include <rclcpp/executor.hpp>
-#include <rclcpp/executors.hpp>
-#include <rclcpp/executors/multi_threaded_executor.hpp>
-#include <rclcpp/utilities.hpp>
-#include <string>
-#include <geometry_msgs/msg/vector3_stamped.hpp>
+#include "ur_robot_manager/ur_robot_manager.hpp"
 
-EeStatePublisher::EeStatePublisher() 
-	: Node("ee_state_publisher", rclcpp::NodeOptions().automatically_declare_parameters_from_overrides(true)),
-	  tf_buffer_(this->get_clock()),
-	  tf_listener_(tf_buffer_)
-{
-  ns_ = this->get_parameter("ns").as_string();
-  tf_prefix_ = this->get_parameter("tf_prefix").as_string();
-  base_frame_ = tf_prefix_ + "base";
-  planning_group_ = tf_prefix_ + "manipulator";
-  RCLCPP_INFO(this->get_logger(), "Initializing EE State Publisher with namespace: /%s and planning group: %s", ns_.c_str(), planning_group_.c_str());
-
-  pose_pub_ = create_publisher<geometry_msgs::msg::PoseStamped>("ee_pose", 10);
-  twist_pub_ = create_publisher<geometry_msgs::msg::TwistStamped>("ee_twist", 10);
-  accel_pub_ = create_publisher<geometry_msgs::msg::AccelStamped>("ee_accel", 10);
-}
-
-void EeStatePublisher::setup() {
-
-  moveit::planning_interface::MoveGroupInterface::Options options(planning_group_, "robot_description", "/"+ns_);
-  move_group_ = std::make_unique<moveit::planning_interface::MoveGroupInterface>(shared_from_this(), options);  
-  joint_model_group_ = move_group_->getRobotModel()->getJointModelGroup(planning_group_);
-  ee_link_ = move_group_->getEndEffectorLink();
-
-  if (ee_link_.empty()) {
-    const auto &links = joint_model_group_->getLinkModelNames();
-    ee_link_ = links.back();
-    RCLCPP_WARN(get_logger(), "No EE link configured. Using last link: %s",
-                ee_link_.c_str());
-  }
-
-  move_group_->startStateMonitor();
-  move_group_->setPoseReferenceFrame(tf_prefix_+"base");
-
-  // Wait until we can successfully fetch the current pose
-  RCLCPP_INFO(get_logger(), "Waiting for current robot state...");
-  while (rclcpp::ok()) {
-      try {
-          // This will log an error internally if it fails, but we catch/retry
-          last_pose_ = move_group_->getCurrentPose(tf_prefix_+"tool0");
-          
-          // Check if we got valid data (if orientation w is 0, it's usually an uninitialized empty pose)
-          if (last_pose_.pose.orientation.w != 0.0) {
-              break; 
+namespace ur_robot_manager {
+  // --- EE State Publisher - Setup --- ///
+  void UrRobotManager::ee_state_publisher_setup() {
+    // Publishers
+    ee_pose_pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>("ee_pose", 10);
+    ee_twist_pub_ = this->create_publisher<geometry_msgs::msg::TwistStamped>("ee_twist", 10);
+    ee_accel_pub_ = this->create_publisher<geometry_msgs::msg::AccelStamped>("ee_accel", 10);
+    // Setup EE Link logging check
+    auto* joint_model_group = moveit_move_group_->getRobotModel()->getJointModelGroup(moveit_planning_group_);
+    std::string ee_link = moveit_move_group_->getEndEffectorLink();
+    if (ee_link.empty()) {
+      const auto &links = joint_model_group->getLinkModelNames();
+      ee_link = links.back();
+      RCLCPP_WARN(this->get_logger(), "[EE State Publisher] No EE link configured. Using last link: %s", ee_link.c_str());
+    }
+    moveit_move_group_->startStateMonitor();
+    moveit_move_group_->setPoseReferenceFrame(tf_prefix_ + "base_link");
+    RCLCPP_INFO(this->get_logger(), "[EE State Publisher] Waiting for current robot state...");
+    while (rclcpp::ok()) {
+      if (tf_buffer_->canTransform(tf_prefix_ + "base_link", tf_prefix_ + "tool0", tf2::TimePointZero)) {
+        try {
+          geometry_msgs::msg::TransformStamped tf_msg =
+            tf_buffer_->lookupTransform(tf_prefix_ + "base_link", tf_prefix_ + "tool0", tf2::TimePointZero);
+          geometry_msgs::msg::PoseStamped initial_pose;
+          initial_pose.header = tf_msg.header;
+          initial_pose.pose.position.x = tf_msg.transform.translation.x;
+          initial_pose.pose.position.y = tf_msg.transform.translation.y;
+          initial_pose.pose.position.z = tf_msg.transform.translation.z;
+          initial_pose.pose.orientation = tf_msg.transform.rotation;
+          if (initial_pose.pose.orientation.w != 0.0) {
+            std::lock_guard<std::mutex> lock(ee_state_mutex_);
+            ee_current_pose_ = initial_pose;
+            break;
           }
-      } catch (...) {
-          // Ignore exceptions and keep trying
+        } catch (const tf2::TransformException &) {
+          // Ignore transient TF exceptions
+        }
       }
       rclcpp::sleep_for(std::chrono::milliseconds(100));
+    }
+    RCLCPP_INFO(this->get_logger(), "[EE State Publisher] Publishing EE state for link: %s", ee_link.c_str());
+    ee_state_timer_ = this->create_wall_timer(
+        std::chrono::milliseconds(5),
+        std::bind(&UrRobotManager::ee_state_publisher_loop_callback_, this),
+        ee_state_cb_group_
+        );
   }
 
-  RCLCPP_INFO(get_logger(), "Publishing EE state for link: %s", ee_link_.c_str());    
-}
-
-void EeStatePublisher::publishState() {
-  //----------------------------------------------------
-  // Pose - transform from root_frame to planning_frame (base_link)
-  //--------------------------------------------------
-
-  geometry_msgs::msg::PoseStamped pose_msg = move_group_->getCurrentPose(tf_prefix_+"tool0");
-  pose_msg = getPoseInBaseFrame(pose_msg);
-  
-  rclcpp::Time t_curr(pose_msg.header.stamp);
-  rclcpp::Time t_last(last_pose_.header.stamp);
-  double dt = (t_curr - t_last).seconds();
-
-  if (dt <= 0.0) {
-    // Avoid division by zero if messages arrive with the exact same timestamp
-    return; 
-  }
-
-  //----------------------------------------------------
-  // Twist - transform from root_frame to planning_frame
-  //--------------------------------------------------
-
-  // Transform twist linear and angular components from root_frame to planning_frame
-  geometry_msgs::msg::TwistStamped twist_msg;    
-  twist_msg.header = pose_msg.header;
-
-  Eigen::Vector3d linear_velocity, angular_velocity;
-  tf2::Quaternion q_last(last_pose_.pose.orientation.x, last_pose_.pose.orientation.y, last_pose_.pose.orientation.z, last_pose_.pose.orientation.w);
-  tf2::Quaternion q_curr(pose_msg.pose.orientation.x, pose_msg.pose.orientation.y, pose_msg.pose.orientation.z, pose_msg.pose.orientation.w);
-
-  // Linear velocity
-  linear_velocity(0) = (pose_msg.pose.position.x - last_pose_.pose.position.x) / dt;
-  linear_velocity(1) = (pose_msg.pose.position.y - last_pose_.pose.position.y) / dt;
-  linear_velocity(2) = (pose_msg.pose.position.z - last_pose_.pose.position.z) / dt;
-
-  // Angular velocity
-  tf2::Quaternion q_diff = q_curr * q_last.inverse();
-  q_diff.normalize();
-
-  double angle = q_diff.getAngle();
-  tf2::Vector3 axis(0.0, 0.0, 0.0);
-
-  if (std::abs(angle) > 1e-8) {
-      axis = q_diff.getAxis();
-  }
-
-  angular_velocity(0) = axis.x() * angle / dt;
-  angular_velocity(1) = axis.y() * angle / dt;
-  angular_velocity(2) = axis.z() * angle / dt;
-
-  twist_msg.twist.linear.x = linear_velocity(0);
-  twist_msg.twist.linear.y = linear_velocity(1);
-  twist_msg.twist.linear.z = linear_velocity(2);
-
-  twist_msg.twist.angular.x = angular_velocity(0);
-  twist_msg.twist.angular.y = angular_velocity(1);
-  twist_msg.twist.angular.z = angular_velocity(2);
-  
-  //----------------------------------------------------
-  // Acceleration - transform from root_frame to planning_frame
-  //--------------------------------------------------
-
-  geometry_msgs::msg::AccelStamped accel_msg;
-  accel_msg.header = pose_msg.header;
-
-  // Assuming twist_msg and last_twist_ are of type geometry_msgs::msg::TwistStamped
-  geometry_msgs::msg::Vector3 delta_linear_velocity;
-  geometry_msgs::msg::Vector3 delta_angular_velocity;
-
-  delta_linear_velocity.x = twist_msg.twist.linear.x - last_twist_.twist.linear.x;
-  delta_linear_velocity.y = twist_msg.twist.linear.y - last_twist_.twist.linear.y;
-  delta_linear_velocity.z = twist_msg.twist.linear.z - last_twist_.twist.linear.z;
-
-  delta_angular_velocity.x = twist_msg.twist.angular.x - last_twist_.twist.angular.x;
-  delta_angular_velocity.y = twist_msg.twist.angular.y - last_twist_.twist.angular.y;
-  delta_angular_velocity.z = twist_msg.twist.angular.z - last_twist_.twist.angular.z;
-
-  geometry_msgs::msg::Vector3 linear_acceleration;
-  geometry_msgs::msg::Vector3 angular_acceleration;
-
-  linear_acceleration.x = delta_linear_velocity.x / dt;
-  linear_acceleration.y = delta_linear_velocity.y / dt;
-  linear_acceleration.z = delta_linear_velocity.z / dt;
-
-  angular_acceleration.x = delta_angular_velocity.x / dt;
-  angular_acceleration.y = delta_angular_velocity.y / dt;
-  angular_acceleration.z = delta_angular_velocity.z / dt;
-
-  accel_msg.accel.linear = linear_acceleration;
-  accel_msg.accel.angular = angular_acceleration;
-
-  //----------------------------------------------------
-  // Publish msgs
-  //--------------------------------------------------
-  pose_pub_->publish(pose_msg);
-  twist_pub_->publish(twist_msg);
-  accel_pub_->publish(accel_msg);
-
-  last_pose_ = pose_msg;
-  last_twist_ = twist_msg;
-}
-
-geometry_msgs::msg::PoseStamped  EeStatePublisher::getPoseInBaseFrame(geometry_msgs::msg::PoseStamped tool_pose){
-
-    //Transform to base frame
-    geometry_msgs::msg::PoseStamped pose_in_base;
-
-    try
+  // --- EE State Publisher - Loop Callback --- ///
+  void UrRobotManager::ee_state_publisher_loop_callback_() {
+    // Pose from MoveIt is already in planning frame
+    geometry_msgs::msg::PoseStamped pose_msg = moveit_move_group_->getCurrentPose(tf_prefix_ + "tool0");
+    geometry_msgs::msg::PoseStamped last_pose;
+    geometry_msgs::msg::TwistStamped last_twist;
     {
-      pose_in_base = tf_buffer_.transform(
-          tool_pose,
-          base_frame_,
-          tf2::durationFromSec(0.5));
+      std::lock_guard<std::mutex> lock(ee_state_mutex_);
+      last_pose = ee_current_pose_;
+      last_twist = ee_current_twist_;
     }
-    catch (const tf2::TransformException &ex)
+    const rclcpp::Time t_curr(pose_msg.header.stamp);
+    const rclcpp::Time t_last(last_pose.header.stamp);
+    const double dt = (t_curr - t_last).seconds();
+    if (dt <= 0.0) {
+      return;
+    }
+    // Calculate Twist (Linear and Angular Velocity)
+    geometry_msgs::msg::TwistStamped twist_msg;
+    twist_msg.header = pose_msg.header;
+    twist_msg.twist.linear.x = (pose_msg.pose.position.x - last_pose.pose.position.x) / dt;
+    twist_msg.twist.linear.y = (pose_msg.pose.position.y - last_pose.pose.position.y) / dt;
+    twist_msg.twist.linear.z = (pose_msg.pose.position.z - last_pose.pose.position.z) / dt;
+    const tf2::Quaternion q_last(
+        last_pose.pose.orientation.x,
+        last_pose.pose.orientation.y,
+        last_pose.pose.orientation.z,
+        last_pose.pose.orientation.w);
+    const tf2::Quaternion q_curr(
+        pose_msg.pose.orientation.x,
+        pose_msg.pose.orientation.y,
+        pose_msg.pose.orientation.z,
+        pose_msg.pose.orientation.w);
+    tf2::Quaternion q_diff = (q_curr * q_last.inverse()).normalized();
+    const double angle = q_diff.getAngle();
+    if (std::abs(angle) > 1e-8) {
+      const tf2::Vector3 axis = q_diff.getAxis();
+      const double scale = angle / dt;
+      twist_msg.twist.angular.x = axis.x() * scale;
+      twist_msg.twist.angular.y = axis.y() * scale;
+      twist_msg.twist.angular.z = axis.z() * scale;
+    }
+    // Calculate Acceleration directly into message
+    geometry_msgs::msg::AccelStamped accel_msg;
+    accel_msg.header = pose_msg.header;
+    accel_msg.accel.linear.x = (twist_msg.twist.linear.x - last_twist.twist.linear.x) / dt;
+    accel_msg.accel.linear.y = (twist_msg.twist.linear.y - last_twist.twist.linear.y) / dt;
+    accel_msg.accel.linear.z = (twist_msg.twist.linear.z - last_twist.twist.linear.z) / dt;
+    accel_msg.accel.angular.x = (twist_msg.twist.angular.x - last_twist.twist.angular.x) / dt;
+    accel_msg.accel.angular.y = (twist_msg.twist.angular.y - last_twist.twist.angular.y) / dt;
+    accel_msg.accel.angular.z = (twist_msg.twist.angular.z - last_twist.twist.angular.z) / dt;
+    // Update internal state under mutex lock
     {
-      RCLCPP_ERROR(get_logger(), "TF failed: %s", ex.what());
-      throw;
+      std::lock_guard<std::mutex> lock(ee_state_mutex_);
+      ee_current_pose_ = pose_msg;
+      ee_current_twist_ = twist_msg;
+      ee_current_accel_ = accel_msg;
     }
+    // Publish state
+    ee_pose_pub_->publish(pose_msg);
+    ee_twist_pub_->publish(twist_msg);
+    ee_accel_pub_->publish(accel_msg);
+  }
 
-    return pose_in_base;
-}
-
-int main(int argc, char** argv)
-{
-    rclcpp::init(argc, argv);
-    auto node = std::make_shared<EeStatePublisher>();
-
-    rclcpp::executors::MultiThreadedExecutor executor;
-    executor.add_node(node);
-    std::thread([&executor]() { executor.spin(); }).detach();
-
-    node->setup();
-
-    rclcpp::WallRate loop_rate(200);
-    RCLCPP_INFO(node->get_logger(), "Starting publishing on states topics");
-
-    while (rclcpp::ok()) {
-      node->publishState();
-      loop_rate.sleep();     
-    }
-
-    RCLCPP_INFO(node->get_logger(), "End publishing on states topics");
-    rclcpp::shutdown();
-    return 0;
-}
+}  // namespace ur_robot_manager
