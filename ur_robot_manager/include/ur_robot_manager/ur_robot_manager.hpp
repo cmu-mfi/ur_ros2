@@ -4,6 +4,7 @@
 #include <moveit/move_group_interface/move_group_interface.hpp>
 #include <moveit/planning_scene_interface/planning_scene_interface.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
+#include <array>
 #include <cmath>
 #include <moveit_servo/servo.hpp>
 #include <moveit_servo/utils/common.hpp>
@@ -255,16 +256,24 @@ namespace ur_robot_manager {
       void admittance_pose_servo_subscription_callback_(const PoseServo::SharedPtr msg);
       rclcpp::TimerBase::SharedPtr admittance_pose_servo_timer_;
       void admittance_pose_servo_loop_callback_();
+      void initialize_admittance_pose_servo(const StartAdmittancePoseServo::Request & request);
+      std::array<double, 6> read_admittance_sensor_wrench();
+      void tare_admittance_sensor();
+      std::array<double, 6> calculate_admittance_displacement(
+        const std::array<double, 6> & sensor_wrench, double dt);
+      struct AdmittanceAxisState {
+        double displacement = 0.0;
+        double previous_displacement = 0.0;
+        double wrench_error = 0.0;
+        double previous_wrench_error = 0.0;
+      };
       // State storage and Thread Safety
       std::atomic<bool> admittance_pose_servo_active_{false};
       AdmittancePoseServoConfig admittance_pose_servo_config_;
       geometry_msgs::msg::Pose admittance_pose_servo_desired_pose_;
       std::mutex admittance_pose_servo_mutex_;
       rclcpp::Time admittance_pose_servo_previous_time_;
-      std::array<double, 6> admittance_x_k_1_ = {0.0};
-      std::array<double, 6> admittance_x_k_2_ = {0.0};
-      std::array<double, 6> admittance_f_k_1_ = {0.0};
-      std::array<double, 6> admittance_f_k_2_ = {0.0};
+      std::array<AdmittanceAxisState, 6> admittance_axis_states_{};
       std::array<double, 6> admittance_wrench_offset_ = {0.0};
   };
 

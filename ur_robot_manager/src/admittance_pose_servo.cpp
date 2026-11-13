@@ -1,29 +1,56 @@
 #include "ur_robot_manager/ur_robot_manager.hpp"
 
 namespace ur_robot_manager {
+  namespace {
+    std::array<double, 6> wrench_components(const geometry_msgs::msg::Wrench & wrench) {
+      return {wrench.force.x, wrench.force.y, wrench.force.z,
+              wrench.torque.x, wrench.torque.y, wrench.torque.z};
+    }
+
+    geometry_msgs::msg::Pose apply_admittance_displacement(
+        const geometry_msgs::msg::Pose & desired_pose,
+        const std::array<double, 6> & displacement,
+        const tf2::Quaternion & base_ft_rotation)
+    {
+      auto commanded_pose = desired_pose;
+      const auto linear_displacement = tf2::quatRotate(
+          base_ft_rotation, tf2::Vector3(displacement[0], displacement[1], displacement[2]));
+      // Reverse the applied admittance displacement when using tool0 axes.
+      commanded_pose.position.x -= linear_displacement.x();
+      commanded_pose.position.y -= linear_displacement.y();
+      commanded_pose.position.z -= linear_displacement.z();
+
+      // Apply the exact inverse rotation about tool0's origin and moving axes.
+      tf2::Quaternion desired_rotation, angular_displacement;
+      tf2::fromMsg(desired_pose.orientation, desired_rotation);
+      angular_displacement.setRPY(displacement[3], displacement[4], displacement[5]);
+      auto commanded_rotation = base_ft_rotation * angular_displacement.inverse() *
+          base_ft_rotation.inverse() * desired_rotation;
+      commanded_rotation.normalize();
+      commanded_pose.orientation = tf2::toMsg(commanded_rotation);
+      return commanded_pose;
+    }
+  }  // namespace
+
   // --- Admittance Pose Servo - Setup --- ///
   void UrRobotManager::admittance_pose_servo_setup() {
-    // Start Admittance Pose Servo Service
     start_admittance_pose_servo_service_ = this->create_service<StartAdmittancePoseServo>(
         "start_admittance_pose_servo",
         std::bind(&UrRobotManager::start_admittance_pose_servo_service_callback, this, std::placeholders::_1, std::placeholders::_2),
         rclcpp::QoS(rclcpp::KeepLast(10)).reliable().durability_volatile(),
         service_cb_group_
         );
-    // Stop Admittance Pose Servo Service
     stop_admittance_pose_servo_service_ = this->create_service<Trigger>(
         "stop_admittance_pose_servo",
         std::bind(&UrRobotManager::stop_admittance_pose_servo_service_callback, this, std::placeholders::_1, std::placeholders::_2),
         rclcpp::QoS(rclcpp::KeepLast(10)).reliable().durability_volatile(),
         service_cb_group_
         );
-    // Admittance Pose Servo Subscriber
     admittance_pose_servo_subscriber_ = this->create_subscription<PoseServo>(
         "admittance_pose_servo",
         rclcpp::SystemDefaultsQoS(),
         std::bind(&UrRobotManager::admittance_pose_servo_subscription_callback_, this, std::placeholders::_1)
         );
-    // Admittance Loop Timer
     admittance_pose_servo_timer_ = this->create_wall_timer(
         std::chrono::duration<double>(servo_params_.publish_period),
         std::bind(&UrRobotManager::admittance_pose_servo_loop_callback_, this),
@@ -46,89 +73,98 @@ namespace ur_robot_manager {
     if (admittance_pose_servo_active_) {
       response->success = false;
       response->message = "Admittance Pose Servo already running!";
-    } else {
-      // Make sure Robot is IDLE
-      {
-        std::lock_guard<std::mutex> lock(control_mode_mutex_);
-        if (control_mode_ != ControlMode::IDLE) {
-          RCLCPP_ERROR(this->get_logger(),
-              "[Admittance Pose Servo] Robot is already being controlled (current mode: %s).",
-              controlModeToString(control_mode_));
-          response->success = false;
-          response->message = "Robot is already being controlled.";
-          return;
-        }
-        control_mode_ = ControlMode::ADMITTANCE_POSE_SERVO;
+      return;
+    }
+    {
+      std::lock_guard<std::mutex> lock(control_mode_mutex_);
+      if (control_mode_ != ControlMode::IDLE) {
+        RCLCPP_ERROR(this->get_logger(),
+            "[Admittance Pose Servo] Robot is already being controlled (current mode: %s).",
+            controlModeToString(control_mode_));
+        response->success = false;
+        response->message = "Robot is already being controlled.";
+        return;
       }
-      // Copy parameters into configuration struct
-      admittance_pose_servo_config_.target_wrench = request->target_wrench;
-      for (size_t i = 0; i < 6; ++i) {
-        admittance_pose_servo_config_.selection_vector[i] = request->selection_vector[i];
-        admittance_pose_servo_config_.mass[i] = request->mass[i];
-        admittance_pose_servo_config_.damping[i] = request->damping[i];
-        admittance_pose_servo_config_.stiffness[i] = request->stiffness[i];
-        admittance_pose_servo_config_.max_velocity[i] = request->max_velocity[i];
+      control_mode_ = ControlMode::ADMITTANCE_POSE_SERVO;
+    }
+
+    initialize_admittance_pose_servo(*request);
+    try {
+      // Require the moving FT frame before enabling admittance.
+      tf_buffer_->lookupTransform(tf_prefix_ + "base_link", tf_prefix_ + "tool0", tf2::TimePointZero);
+    } catch (const tf2::TransformException & ex) {
+      std::lock_guard<std::mutex> lock(control_mode_mutex_);
+      if (control_mode_ == ControlMode::ADMITTANCE_POSE_SERVO) {
+        control_mode_ = ControlMode::IDLE;
       }
-      {
-        std::lock_guard<std::mutex> ee_lock(ee_state_mutex_);
-        std::lock_guard<std::mutex> admittance_lock(admittance_pose_servo_mutex_);
-        admittance_pose_servo_desired_pose_ = ee_current_pose_.pose;
+      response->success = false;
+      response->message = std::string("Could not initialize admittance in FT frame: ") + ex.what();
+      return;
+    }
+
+    tare_admittance_sensor();
+    admittance_pose_servo_active_ = true;
+    response->success = true;
+    response->message = "Admittance pose servo successfully started.";
+  }
+
+  void UrRobotManager::initialize_admittance_pose_servo(const StartAdmittancePoseServo::Request & request) {
+    admittance_pose_servo_config_ = {
+      request.target_wrench, request.selection_vector, request.mass,
+      request.damping, request.stiffness, request.max_velocity
+    };
+    {
+      std::lock_guard<std::mutex> ee_lock(ee_state_mutex_);
+      std::lock_guard<std::mutex> admittance_lock(admittance_pose_servo_mutex_);
+      admittance_pose_servo_desired_pose_ = ee_current_pose_.pose;
+    }
+    admittance_pose_servo_previous_time_ = this->now();
+    admittance_axis_states_ = {};
+  }
+
+  std::array<double, 6> UrRobotManager::read_admittance_sensor_wrench() {
+    std::lock_guard<std::mutex> lock(wrench_mutex_);
+    return wrench_components(current_wrench_.wrench);
+  }
+
+  void UrRobotManager::tare_admittance_sensor() {
+    RCLCPP_INFO(this->get_logger(), "[Admittance Pose Servo] Taring force/torque sensor...");
+    constexpr int sample_count = 50;
+    rclcpp::Rate tare_rate(500);  // 50 samples at 500 Hz span 0.1 seconds.
+    std::array<double, 6> offset_sum{};
+    // The published sensor wrench already uses FT-frame axes.
+    for (int sample = 0; sample < sample_count; ++sample) {
+      const auto sensor_wrench = read_admittance_sensor_wrench();
+      for (size_t axis = 0; axis < offset_sum.size(); ++axis) {
+        offset_sum[axis] += sensor_wrench[axis];
       }
-      admittance_pose_servo_previous_time_ = this->now();
-      // Reset filter history states for a clean start
-      admittance_x_k_1_.fill(0.0);
-      admittance_x_k_2_.fill(0.0);
-      admittance_f_k_1_.fill(0.0);
-      admittance_f_k_2_.fill(0.0);
-      // Tare the force sensor by calculating the mean offset over 50 samples
-      RCLCPP_INFO(this->get_logger(), "[Admittance Pose Servo] Taring force/torque sensor...");
-      std::array<double, 6> offset_sum = {0.0};
-      const int sample_count = 50;
-      rclcpp::Rate tare_rate(500); // Sample at 500 Hz for 0.1 seconds overall
-      for (int i = 0; i < sample_count; ++i) {
-        geometry_msgs::msg::WrenchStamped temp_wrench;
-        {
-          std::lock_guard<std::mutex> lock(wrench_mutex_);
-          temp_wrench = current_wrench_;
-        }
-        offset_sum[0] += temp_wrench.wrench.force.y;
-        offset_sum[1] += temp_wrench.wrench.force.x;
-        offset_sum[2] += temp_wrench.wrench.force.z;
-        offset_sum[3] += temp_wrench.wrench.torque.y;
-        offset_sum[4] += temp_wrench.wrench.torque.x;
-        offset_sum[5] += temp_wrench.wrench.torque.z;
-        tare_rate.sleep();
-      }
-      for (size_t i = 0; i < 6; ++i) {
-        admittance_wrench_offset_[i] = offset_sum[i] / sample_count;
-      }
-      admittance_pose_servo_active_ = true;
-      response->success = true;
-      response->message = "Admittance pose servo successfully started.";
+      tare_rate.sleep();
+    }
+    for (size_t axis = 0; axis < offset_sum.size(); ++axis) {
+      admittance_wrench_offset_[axis] = offset_sum[axis] / sample_count;
     }
   }
 
   // --- Stop Admittance Pose Servo - Callback --- ///
   void UrRobotManager::stop_admittance_pose_servo_service_callback(
-      const std::shared_ptr<Trigger::Request> request,
+      const std::shared_ptr<Trigger::Request>,
       std::shared_ptr<Trigger::Response> response)
   {
-    (void)request;
     RCLCPP_INFO(this->get_logger(), "[Admittance Pose Servo] Received request to stop admittance controller.");
-    if (admittance_pose_servo_active_) {
-      admittance_pose_servo_active_ = false;
-      {
-        std::lock_guard<std::mutex> lock(control_mode_mutex_);
-        if (control_mode_ == ControlMode::ADMITTANCE_POSE_SERVO) {
-          control_mode_ = ControlMode::IDLE;
-        }
-      }
-      response->success = true;
-      response->message = "Admittance pose servo successfully stopped.";
-    } else {
+    if (!admittance_pose_servo_active_) {
       response->success = false;
       response->message = "Admittance Pose Servo wasn't running!";
+      return;
     }
+    admittance_pose_servo_active_ = false;
+    {
+      std::lock_guard<std::mutex> lock(control_mode_mutex_);
+      if (control_mode_ == ControlMode::ADMITTANCE_POSE_SERVO) {
+        control_mode_ = ControlMode::IDLE;
+      }
+    }
+    response->success = true;
+    response->message = "Admittance pose servo successfully stopped.";
   }
 
   // --- Admittance Pose Servo - Subscription Callback --- ///
@@ -138,7 +174,9 @@ namespace ur_robot_manager {
     if (!admittance_pose_servo_active_) {
       return;
     }
-    std::string reference_frame = msg->frame_id.empty() ? (moveit_move_group_ ? moveit_move_group_->getPlanningFrame() : tf_prefix_ + "base_link") : msg->frame_id;
+    const std::string reference_frame = msg->frame_id.empty() ?
+        (moveit_move_group_ ? moveit_move_group_->getPlanningFrame() : tf_prefix_ + "base_link") :
+        msg->frame_id;
     geometry_msgs::msg::Pose tool0_pose;
     try {
       tool0_pose = transform_pose_to_tool0_frame(msg->target_pose, msg->target_id);
@@ -163,101 +201,81 @@ namespace ur_robot_manager {
     if (!admittance_pose_servo_active_) {
       return;
     }
-    // Delta time calculation
-    rclcpp::Time now = this->now();
-    double dt = (now - admittance_pose_servo_previous_time_).seconds();
+    const auto now = this->now();
+    const double dt = (now - admittance_pose_servo_previous_time_).seconds();
     admittance_pose_servo_previous_time_ = now;
     if (dt <= 0.0 || dt > 0.5) {
-      RCLCPP_WARN(this->get_logger(), "[Admittance Pose Servo] Time between loop to small or too big!");
+      RCLCPP_WARN(this->get_logger(), "[Admittance Pose Servo] Loop interval must be in (0, 0.5] seconds.");
       return;
     }
-    // Gather current state variables (Pose, Wrench)
-    geometry_msgs::msg::WrenchStamped current_wrench;
-    {
-      std::lock_guard<std::mutex> lock(wrench_mutex_);
-      current_wrench = current_wrench_;
-    }
+    const auto sensor_wrench = read_admittance_sensor_wrench();
     geometry_msgs::msg::Pose desired_pose;
     {
       std::lock_guard<std::mutex> lock(admittance_pose_servo_mutex_);
       desired_pose = admittance_pose_servo_desired_pose_;
     }
-    // Admittance Control Math Algorithm
-    std::array<double, 6> f_reading = {
-      -(current_wrench.wrench.force.y - admittance_wrench_offset_[0]),
-      -(current_wrench.wrench.force.x - admittance_wrench_offset_[1]),
-      -(current_wrench.wrench.force.z - admittance_wrench_offset_[2]),
-      -(current_wrench.wrench.torque.y - admittance_wrench_offset_[3]),
-      -(current_wrench.wrench.torque.x - admittance_wrench_offset_[4]),
-      -(current_wrench.wrench.torque.z - admittance_wrench_offset_[5])
-    };
-    std::array<double, 6> f_contact = {
-      admittance_pose_servo_config_.target_wrench.force.x,
-      admittance_pose_servo_config_.target_wrench.force.y,
-      admittance_pose_servo_config_.target_wrench.force.z,
-      admittance_pose_servo_config_.target_wrench.torque.x,
-      admittance_pose_servo_config_.target_wrench.torque.y,
-      admittance_pose_servo_config_.target_wrench.torque.z
-    };
-    std::array<double, 6> x_k_0 = {0.0};
-    // Loop over all dimensions
-    for (size_t i = 0; i < 6; ++i) {
-      // Check selection vector
-      if (!admittance_pose_servo_config_.selection_vector[i]) {
-        x_k_0[i] = 0.0;
-        admittance_f_k_1_[i] = 0.0;
-        admittance_f_k_2_[i] = 0.0;
-        admittance_x_k_1_[i] = 0.0;
-        admittance_x_k_2_[i] = 0.0;
-        continue;
-      }
-      // Compute Force Error (Deadband to respect target_wrench)
-      double f_k_0 = 0.0;
-      f_k_0 = f_reading[i] - f_contact[i];
-      // Extract constants for readability
-      double M = admittance_pose_servo_config_.mass[i];
-      double dt2 = dt * dt;
-      // Calculate adaptive damping and stiffness
-      double B = admittance_pose_servo_config_.damping[i];
-      double K = admittance_pose_servo_config_.stiffness[i];
-      // Compute Discrete Transfer Function Output
-      double num = dt2 * (f_k_0 + 2.0 * admittance_f_k_1_[i] + admittance_f_k_2_[i])
-                   - (2.0 * K * dt2 - 8.0 * M) * admittance_x_k_1_[i]
-                   - (4.0 * M - 2.0 * B * dt + K * dt2) * admittance_x_k_2_[i];
-      double den = 4.0 * M + 2.0 * B * dt + K * dt2;
-      x_k_0[i] = num / den;
-      // Calculate previous and current unconstrained velocities
-      double current_vel = (x_k_0[i] - admittance_x_k_1_[i]) / dt;
-      //  Velocity constraint
-      if (std::abs(current_vel) > admittance_pose_servo_config_.max_velocity[i] && admittance_pose_servo_config_.max_velocity[i] != 0.0) {
-        current_vel = std::copysign(admittance_pose_servo_config_.max_velocity[i], current_vel);
-      }
-      // Recompute the actual constrained displacement
-      x_k_0[i] = admittance_x_k_1_[i] + current_vel * dt;
-      // Shift history for the next iteration
-      admittance_x_k_2_[i] = admittance_x_k_1_[i];
-      admittance_x_k_1_[i] = x_k_0[i];
-      admittance_f_k_2_[i] = admittance_f_k_1_[i];
-      admittance_f_k_1_[i] = f_k_0;
+    tf2::Quaternion base_ft_rotation;
+    try {
+      const auto base_ft = tf_buffer_->lookupTransform(
+          tf_prefix_ + "base_link", tf_prefix_ + "tool0", tf2::TimePointZero);
+      tf2::fromMsg(base_ft.transform.rotation, base_ft_rotation);
+    } catch (const tf2::TransformException & ex) {
+      RCLCPP_WARN_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
+          "[Admittance Pose Servo] FT transform failed: %s", ex.what());
+      return;
     }
-    geometry_msgs::msg::Pose commanded_pose = desired_pose;
-    // Apply linear deviation directly
-    commanded_pose.position.x += x_k_0[0];
-    commanded_pose.position.y += x_k_0[1];
-    commanded_pose.position.z += x_k_0[2];
-    // Apply angular deviation using TF2 Quaternions
-    tf2::Quaternion q_desired, q_deviation;
-    tf2::fromMsg(desired_pose.orientation, q_desired);
-    q_deviation.setRPY(x_k_0[3], x_k_0[4], x_k_0[5]);
-    tf2::Quaternion q_commanded = q_deviation * q_desired;
-    q_commanded.normalize();
-    commanded_pose.orientation = tf2::toMsg(q_commanded);
-    // Pass desired pose directly to pose_servo subscriber internally
+
+    const auto displacement = calculate_admittance_displacement(sensor_wrench, dt);
     auto pose_servo_msg = std::make_shared<PoseServo>();
     pose_servo_msg->frame_id = tf_prefix_ + "base_link";
     pose_servo_msg->target_id = tf_prefix_ + "tool0";
-    pose_servo_msg->target_pose = commanded_pose;
+    pose_servo_msg->target_pose = apply_admittance_displacement(desired_pose, displacement, base_ft_rotation);
     pose_servo_subscription_callback_(pose_servo_msg);
+  }
+
+  std::array<double, 6> UrRobotManager::calculate_admittance_displacement(
+      const std::array<double, 6> & sensor_wrench, double dt)
+  {
+    const auto & config = admittance_pose_servo_config_;
+    const auto target_wrench = wrench_components(config.target_wrench);
+    const double dt_squared = dt * dt;
+    std::array<double, 6> displacement{};
+
+    // Wrench errors, filter history and velocity limits all use moving FT-frame axes.
+    for (size_t axis = 0; axis < displacement.size(); ++axis) {
+      auto & state = admittance_axis_states_[axis];
+      if (!config.selection_vector[axis]) {
+        state = {};
+        continue;
+      }
+      const double contact_wrench = -(sensor_wrench[axis] - admittance_wrench_offset_[axis]);
+      const double wrench_error = contact_wrench - target_wrench[axis];
+      const double mass = config.mass[axis];
+      const double damping = config.damping[axis];
+      const double stiffness = config.stiffness[axis];
+
+      // Bilinear discretization of M*x'' + B*x' + K*x = wrench_error.
+      // State holds the two preceding samples (k-1 and k-2).
+      const double numerator =
+          dt_squared * (wrench_error + 2.0 * state.wrench_error + state.previous_wrench_error)
+          - (2.0 * stiffness * dt_squared - 8.0 * mass) * state.displacement
+          - (4.0 * mass - 2.0 * damping * dt + stiffness * dt_squared) * state.previous_displacement;
+      const double denominator = 4.0 * mass + 2.0 * damping * dt + stiffness * dt_squared;
+      const double unconstrained_displacement = numerator / denominator;
+
+      double velocity = (unconstrained_displacement - state.displacement) / dt;
+      const double max_velocity = config.max_velocity[axis];
+      if (max_velocity != 0.0 && std::abs(velocity) > max_velocity) {
+        velocity = std::copysign(max_velocity, velocity);
+      }
+      displacement[axis] = state.displacement + velocity * dt;
+
+      state.previous_displacement = state.displacement;
+      state.displacement = displacement[axis];
+      state.previous_wrench_error = state.wrench_error;
+      state.wrench_error = wrench_error;
+    }
+    return displacement;
   }
 
 }  // namespace ur_robot_manager
