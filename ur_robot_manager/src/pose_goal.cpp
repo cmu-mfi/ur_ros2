@@ -41,7 +41,7 @@ namespace ur_robot_manager {
     // Make sure Robot is IDLE
     {
       std::lock_guard<std::mutex> lock(control_mode_mutex_);
-      if (control_mode_ != ControlMode::IDLE) {
+      if (!robot_ready_ || control_mode_ != ControlMode::IDLE) {
         RCLCPP_ERROR(this->get_logger(),
             "[PoseGoal] Robot is not ready or already being controlled (current mode: %s). Rejecting goal.",
             controlModeToString(control_mode_));
@@ -70,7 +70,7 @@ namespace ur_robot_manager {
 
   // --- Pose Goal - Handle Execution --- ///
   void UrRobotManager::pose_goal_handle_execution(const std::shared_ptr<PoseGoalHandle> goal_handle) {
-    ModeReset mode_reset = {control_mode_mutex_, control_mode_};
+    ModeReset mode_reset = {control_mode_mutex_, control_mode_, robot_ready_};
     auto result = std::make_shared<PoseGoal::Result>();
     auto goal = goal_handle->get_goal();
     // Determine target and reference frames

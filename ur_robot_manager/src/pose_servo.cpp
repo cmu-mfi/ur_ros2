@@ -8,9 +8,9 @@ namespace ur_robot_manager {
     // Make sure Robot is IDLE, in POSE_SERVO, or ADMITTANCE_POSE_SERVO
     {
       std::lock_guard<std::mutex> lock(control_mode_mutex_);
-      if (control_mode_ != ControlMode::IDLE &&
+      if (!robot_ready_ || (control_mode_ != ControlMode::IDLE &&
           control_mode_ != ControlMode::POSE_SERVO &&
-          control_mode_ != ControlMode::ADMITTANCE_POSE_SERVO) {
+          control_mode_ != ControlMode::ADMITTANCE_POSE_SERVO)) {
         RCLCPP_ERROR_THROTTLE(
             this->get_logger(), *this->get_clock(), 1000,
             "[Pose Servo] Robot is already being controlled (current mode: %s).",
@@ -39,6 +39,7 @@ namespace ur_robot_manager {
 
   // --- Pose Servo - Loop Callback --- ///
   void UrRobotManager::pose_servo_loop_callback_() {
+    if (!is_robot_ready()) return;
     if (!pose_servo_active_) return;
     auto now = this->now();
     // Watchdog timeout (e.g., 200ms without receiving a new target)

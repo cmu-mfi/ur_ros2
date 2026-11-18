@@ -8,7 +8,7 @@ namespace ur_robot_manager {
     // Make sure Robot is IDLE or already in TWIST_SERVO mode
     {
       std::lock_guard<std::mutex> lock(control_mode_mutex_);
-      if (control_mode_ != ControlMode::IDLE && control_mode_ != ControlMode::TWIST_SERVO) {
+      if (!robot_ready_ || (control_mode_ != ControlMode::IDLE && control_mode_ != ControlMode::TWIST_SERVO)) {
         RCLCPP_ERROR_THROTTLE(
             this->get_logger(), *this->get_clock(), 1000,
             "[Twist Servo] Robot is already being controlled (current mode: %s).",
@@ -32,6 +32,7 @@ namespace ur_robot_manager {
 
   // --- Twist Servo - Loop Callback --- ///
   void UrRobotManager::twist_servo_loop_callback_() {
+    if (!is_robot_ready()) return;
     if (!twist_servo_active_) return;
     auto now = this->now();
     // Watchdog timeout (e.g., 200ms without receiving a new target)

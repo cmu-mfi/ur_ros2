@@ -77,7 +77,7 @@ namespace ur_robot_manager {
     }
     {
       std::lock_guard<std::mutex> lock(control_mode_mutex_);
-      if (control_mode_ != ControlMode::IDLE) {
+      if (!robot_ready_ || control_mode_ != ControlMode::IDLE) {
         RCLCPP_ERROR(this->get_logger(),
             "[Admittance Pose Servo] Robot is already being controlled (current mode: %s).",
             controlModeToString(control_mode_));
@@ -198,6 +198,7 @@ namespace ur_robot_manager {
   // --- Admittance Pose Servo - Loop Callback --- ///
   void UrRobotManager::admittance_pose_servo_loop_callback_()
   {
+    if (!is_robot_ready()) return;
     if (!admittance_pose_servo_active_) {
       return;
     }

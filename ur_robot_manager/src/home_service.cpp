@@ -20,7 +20,7 @@ namespace ur_robot_manager {
     // Make sure Robot is IDLE
     {
       std::lock_guard<std::mutex> lock(control_mode_mutex_);
-      if (control_mode_ != ControlMode::IDLE) {
+      if (!robot_ready_ || control_mode_ != ControlMode::IDLE) {
         RCLCPP_ERROR(this->get_logger(),
             "[Home Service] Robot is not ready or already being controlled (current mode: %s).",
             controlModeToString(control_mode_));
@@ -30,7 +30,7 @@ namespace ur_robot_manager {
       }
       control_mode_ = ControlMode::HOME;
     }
-    ModeReset mode_reset = {control_mode_mutex_, control_mode_};
+    ModeReset mode_reset = {control_mode_mutex_, control_mode_, robot_ready_};
     // configure moveit move
     moveit_move_group_->setStartStateToCurrentState();
     moveit_move_group_->clearPoseTargets();

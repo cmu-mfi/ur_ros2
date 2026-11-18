@@ -13,6 +13,9 @@ namespace ur_robot_manager {
     rclcpp::SubscriptionOptions options;
     options.callback_group = readiness_cb_group_;
     auto status_qos = rclcpp::QoS(1).reliable().transient_local();
+    ready_publisher_ = this->create_publisher<std_msgs::msg::Bool>("ready", status_qos);
+    // Publish the initial unavailable state before accepting readiness feedback.
+    readiness_update();
     controller_activity_subscriber_ = this->create_subscription<ControllerManagerActivity>(
         "controller_manager/activity", status_qos,
         std::bind(&UrRobotManager::readiness_activity_callback_, this, std::placeholders::_1), options);
@@ -73,20 +76,18 @@ namespace ur_robot_manager {
                safety_mode_ != ur_dashboard_msgs::msg::SafetyMode::REDUCED) {
       reason = "UR safety mode does not permit motion.";
     }
-    bool readiness_lost;
+    const bool ready = reason.empty();
     {
       std::lock_guard<std::mutex> lock(control_mode_mutex_);
-      bool ready = reason.empty();
-      readiness_lost = control_mode_ != ControlMode::NOT_READY && !ready;
-      if (control_mode_ == ControlMode::NOT_READY && ready) {
-        control_mode_ = ControlMode::IDLE;
+      robot_ready_ = ready;
+      // Keep active operations' ownership until their normal cleanup completes.
+      if (control_mode_ == ControlMode::NOT_READY || control_mode_ == ControlMode::IDLE) {
+        control_mode_ = ready ? ControlMode::IDLE : ControlMode::NOT_READY;
       }
     }
-    if (readiness_lost) {
-      RCLCPP_FATAL(this->get_logger(), "[Readiness] %s Exiting robot manager.", reason.c_str());
-      rclcpp::shutdown(this->get_node_base_interface()->get_context(), "Robot readiness lost");
-      return;
-    }
+    std_msgs::msg::Bool msg;
+    msg.data = ready;
+    ready_publisher_->publish(msg);
     if (reason != readiness_reason_) {
       if (reason.empty()) {
         RCLCPP_INFO(this->get_logger(), "[Readiness] Robot is ready.");
@@ -100,7 +101,7 @@ namespace ur_robot_manager {
   // --- Readiness - Command Check --- ///
   bool UrRobotManager::is_robot_ready() {
     std::lock_guard<std::mutex> lock(control_mode_mutex_);
-    return control_mode_ != ControlMode::NOT_READY;
+    return robot_ready_;
   }
 
 }  // namespace ur_robot_manager
