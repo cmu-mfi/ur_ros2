@@ -37,7 +37,7 @@ namespace ur_robot_manager {
     moveit_move_group_->clearPathConstraints();
     moveit_move_group_->setPlannerId("PTP");
     // position
-    std::vector<double> home_positions = {0.0, -M_PI/2, M_PI/2, -M_PI/2, -M_PI/2, 0.0}; 
+    std::vector<double> home_positions = {0.001, -M_PI/2, M_PI/2, -M_PI/2, -M_PI/2, 0.001}; 
     if (!moveit_move_group_->setJointValueTarget(home_positions)) {
       RCLCPP_ERROR(this->get_logger(), "[Home Service] Target joint values are out of bounds.");
       response->success = false;
